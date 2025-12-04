@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Project Setup Application with Salesforce Integration"
+    />
+    <link rel="icon" type="image/svg+xml" href="/appen_symbol_white_cmyk (1).svg" />
+    <link rel="shortcut icon" type="image/svg+xml" href="/appen_symbol_white_cmyk (1).svg" />
+    <link rel="apple-touch-icon" href="/appen_symbol_white_cmyk (1).svg" />
+    <title>Project Tools</title>
+    <script>
+      // Suppress WebSocket errors from React's hot reload (must run before React loads)
+      (function() {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          const originalError = console.error;
+          const originalWarn = console.warn;
+          const originalLog = console.log;
+          
+          // Override console.error
+          console.error = function(...args) {
+            const errorMessage = args.join(' ');
+            if (errorMessage.includes('WebSocket') || 
+                errorMessage.includes('ws://') || 
+                errorMessage.includes('Invalid frame header') ||
+                errorMessage.includes('WebSocketClient') ||
+                errorMessage.includes('connection to ws://') ||
+                errorMessage.includes('was interrupted while the page was loading')) {
+              return;
+            }
+            originalError.apply(console, args);
+          };
+          
+          // Override console.warn
+          console.warn = function(...args) {
+            const warnMessage = args.join(' ');
+            if (warnMessage.includes('WebSocket') || 
+                warnMessage.includes('ws://') || 
+                warnMessage.includes('Invalid frame header') ||
+                warnMessage.includes('was interrupted while the page was loading')) {
+              return;
+            }
+            originalWarn.apply(console, args);
+          };
+          
+          // Override console.log to catch WebSocket messages
+          console.log = function(...args) {
+            const logMessage = args.join(' ');
+            if (logMessage.includes('WebSocket') || 
+                logMessage.includes('ws://') || 
+                logMessage.includes('was interrupted while the page was loading')) {
+              return;
+            }
+            originalLog.apply(console, args);
+          };
+          
+          // Catch all error events
+          window.addEventListener('error', function(event) {
+            const message = event.message || event.error?.message || event.filename || '';
+            if (message.includes('WebSocket') || 
+                message.includes('ws://') ||
+                message.includes('Invalid frame header') ||
+                message.includes('WebSocketClient') ||
+                message.includes('connection to ws://') ||
+                message.includes('was interrupted while the page was loading')) {
+              event.preventDefault();
+              event.stopPropagation();
+              event.stopImmediatePropagation();
+              return false;
+            }
+          }, true);
+          
+          // Catch unhandled promise rejections
+          window.addEventListener('unhandledrejection', function(event) {
+            const reason = event.reason?.message || event.reason?.toString() || '';
+            if (reason.includes('WebSocket') || 
+                reason.includes('ws://') ||
+                reason.includes('Invalid frame header') ||
+                reason.includes('was interrupted while the page was loading')) {
+              event.preventDefault();
+              return false;
+            }
+          });
+          
+          // Intercept WebSocket creation to prevent errors
+          const OriginalWebSocket = window.WebSocket;
+          window.WebSocket = function(url, protocols) {
+            if (url && (url.includes('ws://localhost:3000/ws') || url.includes('ws://localhost:3000'))) {
+              // Create a dummy WebSocket that doesn't actually connect
+              const dummySocket = {
+                readyState: 3, // CLOSED
+                close: function() {},
+                send: function() {},
+                addEventListener: function() {},
+                removeEventListener: function() {},
+                dispatchEvent: function() { return true; }
+              };
+              // Suppress any errors from this connection
+              setTimeout(function() {
+                // Do nothing - just prevent the error from propagating
+              }, 0);
+              return dummySocket;
+            }
+            return new OriginalWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = OriginalWebSocket.prototype;
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+
