@@ -1,0 +1,47 @@
+{
+  "name": "project-setup-app",
+  "version": "3.8.0",
+  "description": "Project Setup Application with Salesforce Integration",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "nodemon server/index.js",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "install-all": "npm install && cd client && npm install"
+  },
+  "keywords": [
+    "project-setup",
+    "salesforce",
+    "nlp",
+    "ocr"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "csrf": "^3.1.0",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-session": "^1.18.2",
+    "helmet": "^7.1.0",
+    "jsforce": "^3.10.8",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.6.0",
+    "multer": "^1.4.5-lts.1",
+    "natural": "^6.7.0",
+    "pdf-parse": "^1.1.1",
+    "tesseract.js": "^5.0.4",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.2"
+  }
+}
