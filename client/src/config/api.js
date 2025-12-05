@@ -25,8 +25,9 @@ const checkBackendHealthWithCache = async () => {
   // Start new health check
   backendHealthCheckPromise = (async () => {
     try {
-      const response = await axios.get('/health', {
-        baseURL: API_BASE_URL,
+      // Health check endpoint - use relative path to go through proxy
+      const healthUrl = process.env.NODE_ENV === 'production' ? '/api/health' : '/api/health';
+      const response = await axios.get(healthUrl, {
         timeout: 3000,
         validateStatus: (status) => status === 200
       });

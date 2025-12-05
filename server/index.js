@@ -43,6 +43,7 @@ const contributorTimeStatusRoutes = require('./routes/contributorTimeStatus');
 const contributorMatchMatrixRoutes = require('./routes/contributorMatchMatrix');
 const poPayRatesRoutes = require('./routes/poPayRates');
 const poProductivityTargetsRoutes = require('./routes/poProductivityTargets');
+const welcomeRoutes = require('./routes/welcome');
 
 // Queue Status Scheduler Service
 const { startScheduler } = require('./services/queueStatusScheduler');
@@ -313,6 +314,7 @@ app.use('/api/contributor-time-status', validateCsrf, contributorTimeStatusRoute
 app.use('/api/contributor-match-matrix', validateCsrf, contributorMatchMatrixRoutes);
 app.use('/api/po-pay-rates', validateCsrf, poPayRatesRoutes);
 app.use('/api/po-productivity-targets', validateCsrf, poProductivityTargetsRoutes);
+app.use('/api/welcome', welcomeRoutes); // No CSRF for GET requests
 
 // Routes registered
 

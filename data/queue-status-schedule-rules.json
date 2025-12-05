@@ -4,12 +4,12 @@
     "name": "Mahi Rule",
     "type": "time_based",
     "enabled": true,
-    "fromStatus": "Production Queue",
-    "toStatus": "Calibration Queue",
+    "fromStatus": "Calibration Queue",
+    "toStatus": "Test Queue",
     "days": null,
     "conditions": [],
     "createdAt": "2025-11-22T14:23:02.249Z",
-    "updatedAt": "2025-12-04T07:25:02.740Z",
+    "updatedAt": "2025-12-04T11:30:46.182Z",
     "timeType": "date",
     "specificDate": "2025-12-04",
     "filters": {
@@ -31,9 +31,9 @@
       }
     },
     "status": "done",
-    "lastExecutedAt": "2025-12-04T07:25:02.739Z",
+    "lastExecutedAt": "2025-12-04T11:30:35.947Z",
     "lastExecutionCount": 1,
-    "specificTime": "12:45"
+    "specificTime": "17:00"
   },
   {
     "id": "auto_test_after_days",

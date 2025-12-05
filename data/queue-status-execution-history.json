@@ -1,5 +1,43 @@
 [
   {
+    "id": "exec-1764847835953-vrbgt3yn8",
+    "executionTime": "2025-12-04T11:30:31.559Z",
+    "duration": 4394,
+    "rulesExecuted": 1,
+    "rulesProcessed": 1,
+    "rulesUpdated": 1,
+    "errors": [],
+    "executedRules": [
+      {
+        "ruleId": "auto_production_after_days",
+        "ruleName": "Mahi Rule",
+        "processed": 1,
+        "updated": 1,
+        "errors": []
+      }
+    ],
+    "triggeredBy": "automatic_scheduler"
+  },
+  {
+    "id": "exec-1764847835949-4yi6z7p6v",
+    "executionTime": "2025-12-04T11:30:31.560Z",
+    "duration": 4389,
+    "rulesExecuted": 1,
+    "rulesProcessed": 1,
+    "rulesUpdated": 1,
+    "errors": [],
+    "executedRules": [
+      {
+        "ruleId": "auto_production_after_days",
+        "ruleName": "Mahi Rule",
+        "processed": 1,
+        "updated": 1,
+        "errors": []
+      }
+    ],
+    "triggeredBy": "manual"
+  },
+  {
     "id": "exec-1764833102745-a096eyf7x",
     "executionTime": "2025-12-04T07:24:59.663Z",
     "duration": 3082,
