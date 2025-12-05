@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import HeroSection from '../components/Welcome/HeroSection';
+import QuickActions from '../components/Welcome/QuickActions';
+import SystemStatus from '../components/Welcome/SystemStatus';
+import RecentActivity from '../components/Welcome/RecentActivity';
+import ApplicationOverview from '../components/Welcome/ApplicationOverview';
+import Recommendations from '../components/Welcome/Recommendations';
+import RecentItems from '../components/Welcome/RecentItems';
+import apiClient from '../config/api';
+import toast from 'react-hot-toast';
 import { 
   Menu, 
   LogOut, 
@@ -13,13 +22,10 @@ import {
   FolderOpen, 
   Settings, 
   UserCog,
-  Sparkles,
-  LayoutDashboard,
   ArrowRight,
-  Target,
-  BookOpen,
-  FileText,
-  ListChecks
+  ListChecks,
+  Search,
+  Filter
 } from 'lucide-react';
 import '../styles/Welcome.css';
 import '../styles/Sidebar.css';
@@ -28,7 +34,16 @@ import '../styles/GlobalHeader.css';
 const Welcome = () => {
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [welcomeData, setWelcomeData] = useState({
+    stats: null,
+    activity: [],
+    systemStatus: null,
+    recommendations: [],
+    loading: true
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   const features = [
     {
@@ -116,15 +131,81 @@ const Welcome = () => {
     }
   ];
 
-  // Filter features based on user permissions
+  // Fetch welcome page data
+  const fetchWelcomeData = useCallback(async (silent = false) => {
+    try {
+      if (!silent) {
+        setWelcomeData(prev => ({ ...prev, loading: true }));
+      }
+
+      // Fetch all data in parallel
+      const [statsRes, activityRes, statusRes, recommendationsRes] = await Promise.allSettled([
+        apiClient.get('/welcome/stats'),
+        apiClient.get('/welcome/activity'),
+        apiClient.get('/welcome/system-status'),
+        apiClient.get('/welcome/recommendations')
+      ]);
+
+      setWelcomeData({
+        stats: statsRes.status === 'fulfilled' ? statsRes.value.data : null,
+        activity: activityRes.status === 'fulfilled' ? activityRes.value.data.activities || [] : [],
+        systemStatus: statusRes.status === 'fulfilled' ? statusRes.value.data.status : null,
+        recommendations: recommendationsRes.status === 'fulfilled' ? recommendationsRes.value.data.recommendations || [] : [],
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error fetching welcome data:', error);
+      if (!silent) {
+        toast.error('Failed to load welcome page data');
+      }
+      setWelcomeData(prev => ({ ...prev, loading: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchWelcomeData();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchWelcomeData(true); // Silent refresh
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchWelcomeData]);
+
+  // Filter features based on user permissions, search, and category
   const filteredFeatures = features.filter(feature => {
-    if (!feature.permission) return true; // No permission required
-    if (!user) return false; // No user means no permissions
-    return hasPermission(feature.permission);
+    // Permission check
+    if (feature.permission && (!user || !hasPermission(feature.permission))) {
+      return false;
+    }
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        feature.title.toLowerCase().includes(query) ||
+        feature.description.toLowerCase().includes(query) ||
+        feature.category.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+    
+    // Category filter
+    if (selectedCategory !== 'All' && feature.category !== selectedCategory) {
+      return false;
+    }
+    
+    return true;
   });
+
+  const allCategories = ['All', ...new Set(features.map(f => f.category))];
 
   const handleFeatureClick = (path) => {
     navigate(path);
+  };
+
+  const handleMetricClick = (type) => {
+    navigate('/history');
   };
 
   return (
@@ -165,49 +246,111 @@ const Welcome = () => {
 
           {/* Welcome Content */}
           <div className="welcome-content">
-            {/* Introduction Section */}
-            <div className="welcome-intro">
-              <div className="intro-icon">
-                <Sparkles size={32} style={{ color: '#08979C' }} />
+            {/* Hero Section with Metrics */}
+            <HeroSection 
+              stats={welcomeData.stats} 
+              user={welcomeData.stats?.user || user}
+              onMetricClick={handleMetricClick}
+            />
+
+            {/* Quick Actions */}
+            <QuickActions />
+
+            {/* Main Content - Two Column Layout */}
+            <div className="welcome-main-content">
+              <div className="welcome-left-column">
+                {/* System Status */}
+                <SystemStatus 
+                  status={welcomeData.systemStatus} 
+                  loading={welcomeData.loading}
+                />
+
+                {/* Application Overview */}
+                <ApplicationOverview />
+
+                {/* Recommendations */}
+                <Recommendations 
+                  recommendations={welcomeData.recommendations}
+                  loading={welcomeData.loading}
+                />
               </div>
-              <h2 className="intro-title">Welcome to Project Management Platform</h2>
-              <p className="intro-description">
-                A comprehensive solution for managing projects, contributors, workstreams, and analytics. 
-                Navigate through the features below to access different sections of the application.
-              </p>
+
+              <div className="welcome-right-column">
+                {/* Recent Activity */}
+                <RecentActivity 
+                  activities={welcomeData.activity}
+                  loading={welcomeData.loading}
+                />
+
+                {/* Recent Items */}
+                <RecentItems />
+              </div>
             </div>
 
-            {/* Features Grid */}
+            {/* Features Grid with Search and Filter */}
             <div className="features-section">
-              <h3 className="section-title">Available Features</h3>
-              <div className="features-grid">
-                {filteredFeatures.map((feature) => {
-                  const IconComponent = feature.icon;
-                  return (
-                    <div
-                      key={feature.id}
-                      className="feature-card"
-                      onClick={() => handleFeatureClick(feature.path)}
+              <div className="features-section-header">
+                <h3 className="section-title">Available Features</h3>
+                <div className="features-controls">
+                  <div className="search-box">
+                    <Search size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search features..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="search-input"
+                    />
+                  </div>
+                  <div className="filter-box">
+                    <Filter size={16} />
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="filter-select"
                     >
-                      <div className="feature-card-header">
-                        <div className="feature-icon" style={{ backgroundColor: `${feature.color}15`, color: feature.color }}>
-                          <IconComponent size={24} />
-                        </div>
-                        <div className="feature-category">{feature.category}</div>
-                      </div>
-                      <div className="feature-card-body">
-                        <h4 className="feature-title">{feature.title}</h4>
-                        <p className="feature-description">{feature.description}</p>
-                      </div>
-                      <div className="feature-card-footer">
-                        <span className="feature-link">
-                          Open <ArrowRight size={16} />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                      {allCategories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
+              
+              {filteredFeatures.length === 0 ? (
+                <div className="no-features-message">
+                  No features found matching your search criteria.
+                </div>
+              ) : (
+                <div className="features-grid">
+                  {filteredFeatures.map((feature) => {
+                    const IconComponent = feature.icon;
+                    return (
+                      <div
+                        key={feature.id}
+                        className="feature-card"
+                        onClick={() => handleFeatureClick(feature.path)}
+                      >
+                        <div className="feature-card-header">
+                          <div className="feature-icon" style={{ backgroundColor: `${feature.color}15`, color: feature.color }}>
+                            <IconComponent size={24} />
+                          </div>
+                          <div className="feature-category">{feature.category}</div>
+                        </div>
+                        <div className="feature-card-body">
+                          <h4 className="feature-title">{feature.title}</h4>
+                          <p className="feature-description">{feature.description}</p>
+                        </div>
+                        <div className="feature-card-footer">
+                          <span className="feature-link">
+                            Open <ArrowRight size={16} />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Admin Features Section */}
