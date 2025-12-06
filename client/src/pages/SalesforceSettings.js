@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Save, TestTube, Eye, EyeOff, CheckCircle, XCircle, Menu, LogOut } from 'lucide-react';
+import { Save, TestTube, Eye, EyeOff, CheckCircle, XCircle, Menu } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import '../styles/SalesforceSettings.css';
@@ -414,15 +415,7 @@ const SalesforceSettings = ({ asTab = false }) => {
                 </div>
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

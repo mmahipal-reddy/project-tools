@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, RefreshCw, Settings, Loader } from 'lucide-react';
+import { Menu, RefreshCw, Settings, Loader } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import toast from 'react-hot-toast';
 import BookmarkButton from '../components/BookmarkButton';
 import '../styles/CrowdDashboard.css';
@@ -474,15 +475,7 @@ const CrowdDashboard = () => {
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Crowd Dashboard" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

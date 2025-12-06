@@ -488,6 +488,7 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
         id: po.Id,
         name: getProjectObjectiveName(po),
         projectName: po.Project__r?.Name || '--',
+        projectId: po.Project__c || null,
         status: po.Status__c || '--'
       }));
       
@@ -618,13 +619,22 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
         OFFSET ${offset}
       `;
       
+      console.log(`[Project Objectives Query - No Workstreams] Executing query: ${query.substring(0, 500)}...`);
       checkTimeout();
-      const result = await conn.query(query);
+      let result;
+      try {
+        result = await conn.query(query);
+      } catch (queryError) {
+        console.error('[Project Objectives Query - No Workstreams] Query failed:', queryError);
+        console.error('[Project Objectives Query - No Workstreams] Full query:', query);
+        throw queryError;
+      }
       
       projectObjectives = (result.records || []).map(po => ({
         id: po.Id,
         name: getProjectObjectiveName(po),
         projectName: po.Project__r?.Name || '--',
+        projectId: po.Project__c || null,
         status: po.Status__c || '--'
       }));
       
@@ -639,8 +649,8 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
         ? `AND Status__c IN (${statusFilter.map(s => `'${String(s).replace(/'/g, "''")}'`).join(', ')})`
         : '';
       const fieldsToSelect = hasProjectObjectiveNameField
-        ? 'Id, Name, Project_Objective_Name__c, Country__c, Language__c, Project__r.Name, Status__c'
-        : 'Id, Name, Country__c, Language__c, Project__r.Name, Status__c';
+        ? 'Id, Name, Project_Objective_Name__c, Country__c, Language__c, Project__c, Project__r.Name, Status__c'
+        : 'Id, Name, Country__c, Language__c, Project__c, Project__r.Name, Status__c';
       // Build GPC filter conditions (only if feature is enabled)
       const { ENABLE_GPC_FILTER } = require('../config/featureFlags');
       let gpcConditions = [];
@@ -714,6 +724,7 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
         id: po.Id,
         name: getProjectObjectiveName(po),
         projectName: po.Project__r?.Name || '--',
+        projectId: po.Project__c || null,
         status: po.Status__c || '--'
       }));
       
@@ -731,8 +742,8 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
         ? `WHERE Status__c IN (${statusFilter.map(s => `'${String(s).replace(/'/g, "''")}'`).join(', ')})`
         : '';
       const fieldsToSelect = hasProjectObjectiveNameField
-        ? 'Id, Name, Project_Objective_Name__c, Country__c, Language__c, Project__r.Name, Status__c'
-        : 'Id, Name, Country__c, Language__c, Project__r.Name, Status__c';
+        ? 'Id, Name, Project_Objective_Name__c, Country__c, Language__c, Project__c, Project__r.Name, Status__c'
+        : 'Id, Name, Country__c, Language__c, Project__c, Project__r.Name, Status__c';
       let allPOsResult = await conn.query(`
         SELECT ${fieldsToSelect}
         FROM Project_Objective__c
@@ -752,6 +763,7 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
               id: po.Id,
               name: getProjectObjectiveName(po),
               projectName: po.Project__r?.Name || '--',
+              projectId: po.Project__c || null,
               status: po.Status__c || '--'
             });
           }
@@ -801,9 +813,11 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
     });
   } catch (error) {
     console.error('Error fetching project objectives without workstreams:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch project objectives without workstreams'
+      error: error.message || 'Failed to fetch project objectives without workstreams',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }));

@@ -5,7 +5,8 @@ import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import { getErrorMessage, handleError } from '../utils/errorHandler';
 import { sanitizeObject } from '../utils/security';
-import { Search, Menu, Send, LogOut, Plus, X } from 'lucide-react';
+import { Search, Menu, Send, Plus, X } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
@@ -271,15 +272,7 @@ const ProjectTeamSetup = () => {
                 </div>
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

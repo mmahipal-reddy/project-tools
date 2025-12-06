@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, Clock, Plus, Edit, Trash2, Play, Pause, Calendar, Mail, Save, X, RefreshCw } from 'lucide-react';
+import { Menu, Clock, Plus, Edit, Trash2, Play, Pause, Calendar, Mail, Save, X, RefreshCw } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import DeleteConfirmModal from '../components/ReportBuilder/DeleteConfirmModal';
@@ -322,15 +323,7 @@ const ScheduledReports = () => {
               </div>
             </div>
             <div className="header-user-profile">
-              <div className="user-profile">
-                <div className="user-avatar">
-                  {(user?.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                <span className="user-name">{user?.email || 'User'}</span>
-                <button className="logout-btn" onClick={logout} title="Logout">
-                  <LogOut size={18} />
-                </button>
-              </div>
+              <UserProfileDropdown />
             </div>
           </div>
         </header>

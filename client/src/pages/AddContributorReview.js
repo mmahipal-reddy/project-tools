@@ -5,7 +5,8 @@ import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import { getErrorMessage, handleError } from '../utils/errorHandler';
 import { sanitizeObject } from '../utils/security';
-import { Search, Info, Menu, Send, LogOut, Eye, Loader, X } from 'lucide-react';
+import { Search, Info, Menu, Send, Eye, Loader, X } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import PreviewModal from '../components/PreviewModal';
@@ -258,15 +259,7 @@ const AddContributorReview = () => {
               </div>
               <div className="header-user-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <BookmarkButton pageName="Add Contributor Review" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

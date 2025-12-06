@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, FileText, BarChart3, Save, Eye } from 'lucide-react';
+import { Menu, FileText, BarChart3, Save, Eye } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import SaveReportModal from '../components/AdvancedReportBuilder/SaveReportModal';
 import toast from 'react-hot-toast';
 import AdvancedBuilderCanvas from '../components/AdvancedReportBuilder/AdvancedBuilderCanvas';
@@ -106,15 +107,7 @@ const AdvancedReportBuilder = () => {
               </div>
               <div className="header-right">
                 <div className="header-user-profile">
-                  <div className="user-profile">
-                    <div className="user-avatar">
-                      {(user?.email || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <span className="user-name">{user?.email || 'User'}</span>
-                    <button className="logout-btn" onClick={logout} title="Logout">
-                      <LogOut size={18} />
-                    </button>
-                  </div>
+                  <UserProfileDropdown />
                 </div>
               </div>
             </div>

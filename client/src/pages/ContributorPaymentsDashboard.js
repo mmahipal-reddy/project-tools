@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, RefreshCw, DollarSign, TrendingUp, Users, AlertCircle, CheckCircle, BarChart3, Download, Loader, Clock } from 'lucide-react';
+import { Menu, RefreshCw, DollarSign, TrendingUp, Users, AlertCircle, CheckCircle, BarChart3, Download, Loader, Clock } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
@@ -585,15 +586,7 @@ const ContributorPaymentsDashboard = () => {
                     Export
                   </button>
                 </div>
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

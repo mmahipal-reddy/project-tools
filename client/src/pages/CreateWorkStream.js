@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, Search, X, Info, Plus, ChevronDown, ChevronUp, Trash2, Loader, Save, Copy, FolderOpen, Download, Upload, FileText } from 'lucide-react';
+import { Menu, Search, X, Info, Plus, ChevronDown, ChevronUp, Trash2, Loader, Save, Copy, FolderOpen, Download, Upload, FileText } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
+import ObjectViewModal from '../components/ClientToolAccount/ObjectViewModal';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -12,9 +15,12 @@ import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import '../styles/CreateWorkStream.css';
 import '../styles/Sidebar.css';
 import '../styles/GlobalHeader.css';
+import '../styles/ClientToolAccount.css';
 
 const CreateWorkStream = ({ hideHeader = false }) => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +62,12 @@ const CreateWorkStream = ({ hideHeader = false }) => {
   const [importedWorkstreams, setImportedWorkstreams] = useState([]);
   const [importing, setImporting] = useState(false);
   const [resolvingObjectives, setResolvingObjectives] = useState(false);
+  
+  // View modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewModalObjectType, setViewModalObjectType] = useState('');
+  const [viewModalObjectId, setViewModalObjectId] = useState('');
+  const [viewModalObjectName, setViewModalObjectName] = useState('');
 
   // Project Objective search - per workstream
   const [projectObjectiveSearchTerms, setProjectObjectiveSearchTerms] = useState({});
@@ -105,7 +117,10 @@ const CreateWorkStream = ({ hideHeader = false }) => {
         setPoHasMore(hasMoreRecords);
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to fetch project objectives');
+      console.error('Error fetching project objectives:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch project objectives';
+      toast.error(errorMessage);
     } finally {
       setLoadingPOs(false);
       setLoadingMorePOs(false);
@@ -123,6 +138,30 @@ const CreateWorkStream = ({ hideHeader = false }) => {
       console.error('Error loading templates:', error);
     }
   }, []);
+
+  // Check for URL parameters to auto-fill project objective
+  useEffect(() => {
+    const projectObjectiveId = searchParams.get('projectObjectiveId');
+    const projectObjectiveName = searchParams.get('projectObjectiveName');
+    
+    if (projectObjectiveId && projectObjectiveName) {
+      // Auto-fill the first workstream with the project objective
+      const decodedName = decodeURIComponent(projectObjectiveName);
+      setWorkstreams(prev => prev.map((ws, index) => 
+        index === 0 ? {
+          ...ws,
+          projectObjective: decodedName,
+          projectObjectiveId: projectObjectiveId
+        } : ws
+      ));
+      
+      // Open the form automatically
+      setShowForm(true);
+      
+      // Clear URL parameters after using them
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   // Initial load
   useEffect(() => {
@@ -1223,8 +1262,46 @@ const CreateWorkStream = ({ hideHeader = false }) => {
                   ) : (
                     projectObjectives.map((po, index) => (
                       <tr key={po.id || index}>
-                        <td>{po.name || '--'}</td>
-                        <td>{po.projectName || '--'}</td>
+                        <td>
+                          <span 
+                            className="clickable-field"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (po.id) {
+                                console.log('[CreateWorkStream] Opening modal for Project Objective:', po.id, po.name);
+                                setViewModalObjectType('Project_Objective__c');
+                                setViewModalObjectId(po.id);
+                                setViewModalObjectName(po.name || 'Project Objective');
+                                setShowViewModal(true);
+                              } else {
+                                console.warn('[CreateWorkStream] Project Objective has no ID:', po);
+                              }
+                            }}
+                            style={{ cursor: po.id ? 'pointer' : 'default' }}
+                          >
+                            {po.name || '--'}
+                          </span>
+                        </td>
+                        <td>
+                          <span 
+                            className="clickable-field"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (po.projectId) {
+                                console.log('[CreateWorkStream] Opening modal for Project:', po.projectId, po.projectName);
+                                setViewModalObjectType('Project');
+                                setViewModalObjectId(po.projectId);
+                                setViewModalObjectName(po.projectName || 'Project');
+                                setShowViewModal(true);
+                              } else {
+                                console.warn('[CreateWorkStream] Project has no ID:', po);
+                              }
+                            }}
+                            style={{ cursor: po.projectId ? 'pointer' : 'default' }}
+                          >
+                            {po.projectName || '--'}
+                          </span>
+                        </td>
                         <td>{po.status || '--'}</td>
                       </tr>
                     ))
@@ -1620,6 +1697,14 @@ const CreateWorkStream = ({ hideHeader = false }) => {
       <>
         <div className="create-workstream-content-wrapper">{content}</div>
         {importPreviewModal}
+        {/* Object View Modal */}
+        <ObjectViewModal
+          isOpen={showViewModal}
+          onClose={() => setShowViewModal(false)}
+          objectType={viewModalObjectType}
+          objectId={viewModalObjectId}
+          objectName={viewModalObjectName}
+        />
       </>
     );
   }
@@ -1649,15 +1734,7 @@ const CreateWorkStream = ({ hideHeader = false }) => {
                 <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>
@@ -1665,6 +1742,15 @@ const CreateWorkStream = ({ hideHeader = false }) => {
         </div>
       </div>
       {importPreviewModal}
+      
+      {/* Object View Modal */}
+      <ObjectViewModal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        objectType={viewModalObjectType}
+        objectId={viewModalObjectId}
+        objectName={viewModalObjectName}
+      />
     </div>
   );
 };

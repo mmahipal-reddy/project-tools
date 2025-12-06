@@ -4,7 +4,9 @@ import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
 import QueueStatusDashboard from '../components/QueueStatusDashboard';
 import QueueStatusScheduleManager from '../components/QueueStatusScheduleManager';
-import { Menu, LogOut, Search, RefreshCw, Send, Loader, Download, AlertCircle, BarChart3, Clock } from 'lucide-react';
+import { Menu, Search, RefreshCw, Send, Loader, Download, AlertCircle, BarChart3, Clock } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
+import ObjectViewModal from '../components/ClientToolAccount/ObjectViewModal';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -35,6 +37,12 @@ const QueueStatusManagement = () => {
   const [bulkQueueStatus, setBulkQueueStatus] = useState(''); // Bulk update queue status for selected projects
   const [publishing, setPublishing] = useState(false);
   const [activeTab, setActiveTab] = useState('management'); // 'management', 'dashboard', 'schedule'
+  
+  // View modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewModalObjectType, setViewModalObjectType] = useState('');
+  const [viewModalObjectId, setViewModalObjectId] = useState('');
+  const [viewModalObjectName, setViewModalObjectName] = useState('');
   
   // Refs for infinite scroll
   const infiniteScrollRef = useRef(null);
@@ -574,15 +582,7 @@ const QueueStatusManagement = () => {
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Queue Status Management" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>
@@ -871,8 +871,38 @@ const QueueStatusManagement = () => {
                               onChange={() => toggleSelection(project.id)}
                             />
                           </td>
-                          <td>{project.contributorProjectName || 'N/A'}</td>
-                          <td>{project.project || 'N/A'}</td>
+                          <td>
+                            <span 
+                              className="clickable-field"
+                              onClick={() => {
+                                if (project.id) {
+                                  setViewModalObjectType('Contributor_Project__c');
+                                  setViewModalObjectId(project.id);
+                                  setViewModalObjectName(project.contributorProjectName || 'Contributor Project');
+                                  setShowViewModal(true);
+                                }
+                              }}
+                              style={{ cursor: project.id ? 'pointer' : 'default' }}
+                            >
+                              {project.contributorProjectName || 'N/A'}
+                            </span>
+                          </td>
+                          <td>
+                            <span 
+                              className="clickable-field"
+                              onClick={() => {
+                                if (project.projectId) {
+                                  setViewModalObjectType('Project');
+                                  setViewModalObjectId(project.projectId);
+                                  setViewModalObjectName(project.project || 'Project');
+                                  setShowViewModal(true);
+                                }
+                              }}
+                              style={{ cursor: project.projectId ? 'pointer' : 'default' }}
+                            >
+                              {project.project || 'N/A'}
+                            </span>
+                          </td>
                           <td>{project.status || 'N/A'}</td>
                           <td>{currentStatus || '--None--'}</td>
                           <td>
@@ -953,6 +983,15 @@ const QueueStatusManagement = () => {
           )}
         </div>
       </div>
+      
+      {/* Object View Modal */}
+      <ObjectViewModal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        objectType={viewModalObjectType}
+        objectId={viewModalObjectId}
+        objectName={viewModalObjectName}
+      />
     </div>
   );
 };

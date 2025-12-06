@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { saveDraftProject, loadDraftProject, deleteDraftProject } from '../utils/draftStorage';
 import { getErrorMessage, handleError } from '../utils/errorHandler';
 import { sanitizeObject } from '../utils/security';
-import { Upload, FileText, FileJson, FileSpreadsheet, Loader, Search, Info, Menu, LogOut, Send, Plus, X as XIcon, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Upload, FileText, FileJson, FileSpreadsheet, Loader, Search, Info, Menu, Send, Plus, X as XIcon, CheckCircle, XCircle, Eye } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
@@ -519,15 +520,7 @@ const ProjectSetup = () => {
               </div>
               <div className="header-user-profile" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <BookmarkButton pageName="New Project" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

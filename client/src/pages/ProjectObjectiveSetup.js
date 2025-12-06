@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { saveDraftProjectObjective, loadDraftProjectObjective, deleteDraftProjectObjective } from '../utils/draftStorage';
 import { getErrorMessage, handleError } from '../utils/errorHandler';
 import { sanitizeObject } from '../utils/security';
-import { Search, Info, Menu, Send, ChevronRight, ChevronLeft, LogOut, CheckCircle, XCircle, X, Eye } from 'lucide-react';
+import { Search, Info, Menu, Send, ChevronRight, ChevronLeft, CheckCircle, XCircle, X, Eye } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
@@ -467,15 +468,7 @@ const ProjectObjectiveSetup = () => {
                 </div>
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

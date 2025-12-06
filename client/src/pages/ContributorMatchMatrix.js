@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
-import { Menu, LogOut, RefreshCw, Loader, Filter, Check, X } from 'lucide-react';
+import { Menu, RefreshCw, Loader, Filter, Check, X } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import BookmarkButton from '../components/BookmarkButton';
@@ -215,15 +216,7 @@ const ContributorMatchMatrix = () => {
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Contributor Match Matrix" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

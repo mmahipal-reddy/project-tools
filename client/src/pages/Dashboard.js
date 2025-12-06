@@ -5,7 +5,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { PlusCircle, FileText, Settings, TrendingUp, Users, Clock, ArrowRight, Menu, LogOut, CheckCircle, XCircle, BarChart3, Calendar, Activity, PieChart, Zap, Target, Loader, RefreshCw } from 'lucide-react';
+import { PlusCircle, FileText, Settings, TrendingUp, Users, Clock, ArrowRight, Menu, CheckCircle, XCircle, BarChart3, Calendar, Activity, PieChart, Zap, Target, Loader, RefreshCw } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, PieChart as RechartsPieChart, Pie, AreaChart, Area } from 'recharts';
 import DashboardWidgetsManager from '../components/DashboardWidgets/DashboardWidgetsManager';
 import '../styles/Dashboard.css';
@@ -222,15 +223,7 @@ const Dashboard = () => {
                 <RefreshCw size={16} className={refreshing ? 'spinning' : ''} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </button>
-              <div className="user-profile">
-                <div className="user-avatar">
-                  {(user?.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                <span className="user-name">{user?.email || 'User'}</span>
-                <button className="logout-btn" onClick={logout} title="Logout">
-                  <LogOut size={18} />
-                </button>
-              </div>
+              <UserProfileDropdown />
             </div>
           </div>
         </header>

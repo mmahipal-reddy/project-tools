@@ -126,7 +126,8 @@ router.get('/contributor-projects', authenticate, authorize('view_project', 'all
     // Build base query - no LIMIT, we'll use queryMore() for pagination
     const query = `SELECT Id, Name, Client_Tool_Account_Required__c, 
                           Client_Tool_Account_Used__c, Client_Tool_Account_Used__r.Name,
-                          Project__c, Project__r.Name
+                          Project__c, Project__r.Name,
+                          Project_Objective__c, Project_Objective__r.Name
                    FROM Contributor_Project__c 
                    WHERE ${whereClause}
                    ORDER BY Name ASC`;
@@ -167,6 +168,8 @@ router.get('/contributor-projects', authenticate, authorize('view_project', 'all
         contributorProjectName: contributorProject.Name,
         project: contributorProject.Project__r ? contributorProject.Project__r.Name : contributorProject.Project__c,
         projectId: contributorProject.Project__c,
+        projectObjective: contributorProject.Project_Objective__r ? contributorProject.Project_Objective__r.Name : (contributorProject.Project_Objective__c || null),
+        projectObjectiveId: contributorProject.Project_Objective__c || null,
         clientToolAccountRequired: contributorProject.Client_Tool_Account_Required__c || false,
         clientToolAccountUsed: contributorProject.Client_Tool_Account_Used__c,
         clientToolAccountUsedName: contributorProject.Client_Tool_Account_Used__r ? contributorProject.Client_Tool_Account_Used__r.Name : null
@@ -442,6 +445,321 @@ router.post('/create', authenticate, authorize('create_project', 'all'), asyncHa
     res.status(400).json({
       success: false,
       error: error.message || 'Failed to create client tool account'
+    });
+  }
+}));
+
+// Get object details by type and ID (for view modal) - must be before /:id route
+// IMPORTANT: This route must come before router.get('/:id') to avoid route conflicts
+router.get('/object/:objectType/:id', authenticate, authorize('view_project', 'all'), asyncHandler(async (req, res) => {
+  console.log(`[DEBUG] Route matched: GET /object/${req.params.objectType}/${req.params.id}`);
+  try {
+    const { objectType, id } = req.params;
+    const conn = await getSalesforceConnection();
+
+    // Map object type to Salesforce object name
+    const objectTypeMap = {
+      'Project': 'Project__c',
+      'Project_Objective__c': 'Project_Objective__c',
+      'ProjectObjective': 'Project_Objective__c',
+      'Contributor_Project__c': 'Contributor_Project__c',
+      'ContributorProject': 'Contributor_Project__c'
+    };
+
+    const salesforceObjectName = objectTypeMap[objectType] || objectType;
+
+    console.log(`[ObjectViewModal] Fetching ${objectType} (${salesforceObjectName}) with ID: ${id}`);
+
+    // Describe the object to get all fields
+    let describeResult;
+    try {
+      describeResult = await conn.sobject(salesforceObjectName).describe();
+    } catch (describeError) {
+      console.error(`[ObjectViewModal] Error describing ${salesforceObjectName}:`, describeError);
+      return res.status(400).json({
+        success: false,
+        error: `Invalid object type: ${objectType}. Error: ${describeError.message}`
+      });
+    }
+
+    // Get all readable fields (include all fields except base64 and system fields)
+    // Show all fields from all sections - don't limit
+    const readableFields = describeResult.fields
+      .filter(f => 
+        f.type !== 'base64' && 
+        !f.name.includes('__r') && 
+        f.name !== 'attributes' &&
+        f.name !== 'Id' // Exclude Id field from display (it's in the URL)
+      )
+      .map(f => f.name);
+
+    if (readableFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No readable fields found for this object'
+      });
+    }
+
+    // Build field metadata including labels, updateable status, sections, and relationship info
+    const fieldMetadata = {};
+    const fieldLabels = {};
+    const fieldSections = {};
+    const relationshipFields = [];
+    
+    readableFields.forEach(fieldName => {
+      const field = describeResult.fields.find(f => f.name === fieldName);
+      if (field) {
+        fieldLabels[fieldName] = field.label;
+        // Determine if field is truly updateable
+        // A field is updateable if:
+        // - field.updateable is explicitly true AND
+        // - It's not a calculated/formula field AND
+        // - It's not an auto-number field AND
+        // - It's not a system field (Id, CreatedDate, etc.)
+        const isCalculated = field.calculated || field.type === 'calculated' || field.type === 'formula';
+        const isAutoNumber = field.type === 'autonumber' || field.autoNumber;
+        const isSystemField = fieldName === 'Id' || fieldName === 'CreatedDate' || fieldName === 'LastModifiedDate' || 
+                              fieldName === 'CreatedById' || fieldName === 'LastModifiedById' || fieldName === 'SystemModstamp';
+        const isUpdateable = field.updateable === true && !isCalculated && !isAutoNumber && !isSystemField;
+        
+        // Only log first few fields to avoid spam
+        if (readableFields.indexOf(fieldName) < 5) {
+          console.log(`[ObjectViewModal] Field ${fieldName}: updateable=${field.updateable}, isCalculated=${isCalculated}, isAutoNumber=${isAutoNumber}, isSystemField=${isSystemField}, finalUpdateable=${isUpdateable}`);
+        }
+        
+        // Get picklist values if field is a picklist
+        let picklistValues = null;
+        if (field.type === 'picklist' || field.type === 'multipicklist') {
+          picklistValues = (field.picklistValues || [])
+            .filter(pv => pv.active !== false) // Only include active values
+            .map(pv => ({
+              value: pv.value,
+              label: pv.label || pv.value,
+              active: pv.active !== false
+            }));
+        }
+        
+        fieldMetadata[fieldName] = {
+          label: field.label,
+          updateable: isUpdateable,
+          createable: field.createable || false,
+          type: field.type,
+          relationshipName: field.relationshipName || null,
+          referenceTo: field.referenceTo || [],
+          calculated: isCalculated,
+          autoNumber: isAutoNumber,
+          picklistValues: picklistValues
+        };
+        
+        // Track relationship fields to query their names
+        if (field.type === 'reference' && field.relationshipName) {
+          relationshipFields.push({
+            fieldName: fieldName,
+            relationshipName: field.relationshipName
+          });
+        }
+        
+        // Determine section based on field name patterns and label (similar to Salesforce page layouts)
+        // Use a more comprehensive approach to categorize fields
+        let section = 'Additional Information'; // Default section for uncategorized fields
+        const fieldNameLower = fieldName.toLowerCase();
+        const labelLower = (field.label || '').toLowerCase();
+        
+        // System and audit fields
+        if (fieldNameLower.includes('created') || fieldNameLower.includes('modified') || 
+            fieldNameLower.includes('systemmodstamp') || fieldNameLower === 'id' ||
+            fieldNameLower.includes('ownerid') || fieldNameLower.includes('lastmodifiedby')) {
+          section = 'System Information';
+        }
+        // Name and basic info
+        else if (fieldName === 'Name' || (fieldNameLower.includes('name') && !fieldNameLower.includes('project') && !fieldNameLower.includes('account') && !fieldNameLower.includes('contributor'))) {
+          section = 'Information';
+        }
+        // Status fields
+        else if (fieldNameLower.includes('status') || fieldNameLower.includes('queue') || 
+                 labelLower.includes('status') || labelLower.includes('queue')) {
+          section = 'Status';
+        }
+        // Date/Time fields (but not system dates)
+        else if ((fieldNameLower.includes('date') || fieldNameLower.includes('time')) && 
+                 !fieldNameLower.includes('created') && !fieldNameLower.includes('modified')) {
+          section = 'Dates';
+        }
+        // Project fields
+        else if (fieldNameLower.includes('project') && !fieldNameLower.includes('objective')) {
+          section = 'Project';
+        }
+        // Project Objective fields
+        else if (fieldNameLower.includes('objective') || labelLower.includes('objective')) {
+          section = 'Project Objective';
+        }
+        // Contributor fields
+        else if (fieldNameLower.includes('contributor') || labelLower.includes('contributor')) {
+          section = 'Contributor';
+        }
+        // Account fields
+        else if (fieldNameLower.includes('account') || labelLower.includes('account')) {
+          section = 'Account';
+        }
+        // Client Tool fields
+        else if (fieldNameLower.includes('client') || fieldNameLower.includes('tool') || 
+                 labelLower.includes('client tool') || labelLower.includes('tool')) {
+          section = 'Client Tool';
+        }
+        // Payment fields
+        else if (fieldNameLower.includes('payment') || fieldNameLower.includes('pay') || 
+                 labelLower.includes('payment') || labelLower.includes('pay')) {
+          section = 'Payment';
+        }
+        // Contact/Communication fields
+        else if (fieldNameLower.includes('email') || fieldNameLower.includes('phone') || 
+                 fieldNameLower.includes('contact') || fieldNameLower.includes('address') ||
+                 labelLower.includes('email') || labelLower.includes('phone') || 
+                 labelLower.includes('contact') || labelLower.includes('address')) {
+          section = 'Contact Information';
+        }
+        // Description/Notes fields
+        else if (fieldNameLower.includes('description') || fieldNameLower.includes('notes') || 
+                 fieldNameLower.includes('comment') || fieldNameLower.includes('note') ||
+                 labelLower.includes('description') || labelLower.includes('notes') || 
+                 labelLower.includes('comment')) {
+          section = 'Additional Information';
+        }
+        // Verification/Security fields
+        else if (fieldNameLower.includes('verified') || fieldNameLower.includes('otp') || 
+                 fieldNameLower.includes('deactivated') || fieldNameLower.includes('active') ||
+                 labelLower.includes('verified') || labelLower.includes('otp') || 
+                 labelLower.includes('deactivated') || labelLower.includes('active')) {
+          section = 'Security & Verification';
+        }
+        // Custom fields (those ending with __c that don't match other patterns)
+        else if (fieldNameLower.endsWith('__c') && !fieldNameLower.includes('project') && 
+                 !fieldNameLower.includes('account') && !fieldNameLower.includes('contributor') &&
+                 !fieldNameLower.includes('client') && !fieldNameLower.includes('tool')) {
+          section = 'Custom Fields';
+        }
+        // Default to General Information for standard fields
+        else {
+          section = 'General Information';
+        }
+        
+        fieldSections[fieldName] = section;
+        console.log(`[ObjectViewModal] Field ${fieldName} assigned to section: ${section}`);
+      }
+    });
+    
+    console.log(`[ObjectViewModal] Total fields: ${readableFields.length}, Sections found: ${Object.keys(fieldSections).length}`);
+    console.log(`[ObjectViewModal] Sections: ${JSON.stringify(Object.values(fieldSections).reduce((acc, section) => { acc[section] = (acc[section] || 0) + 1; return acc; }, {}))}`);
+
+    // Build query with relationship field names included
+    const relationshipQueries = relationshipFields.map(rel => `${rel.relationshipName}.Name`);
+    const allFields = [...readableFields, ...relationshipQueries];
+    const query = `SELECT ${allFields.join(', ')} FROM ${salesforceObjectName} WHERE Id = '${id}' LIMIT 1`;
+    console.log(`[ObjectViewModal] Executing query: ${query.substring(0, 200)}...`);
+    
+    let result;
+    try {
+      result = await conn.query(query);
+    } catch (queryError) {
+      console.error(`[ObjectViewModal] Query error:`, queryError);
+      return res.status(400).json({
+        success: false,
+        error: `Query failed: ${queryError.message}`
+      });
+    }
+
+    if (!result.records || result.records.length === 0) {
+      console.log(`[ObjectViewModal] No records found for ${salesforceObjectName} with ID: ${id}`);
+      return res.status(404).json({
+        success: false,
+        error: `Object not found: ${objectType} with ID ${id}`
+      });
+    }
+
+    const record = result.records[0];
+    
+    // Convert record to plain object with queried fields only
+    const objectData = {};
+    readableFields.forEach(fieldName => {
+      objectData[fieldName] = record[fieldName];
+    });
+    
+    // Add relationship field names
+    relationshipFields.forEach(rel => {
+      const relFieldName = rel.relationshipName;
+      if (record[relFieldName] && record[relFieldName].Name) {
+        objectData[`${rel.fieldName}_Name`] = record[relFieldName].Name;
+      }
+    });
+
+    res.json({
+      success: true,
+      object: objectData,
+      fieldLabels: fieldLabels,
+      fieldMetadata: fieldMetadata,
+      fieldSections: fieldSections
+    });
+  } catch (error) {
+    console.error('Error fetching object details:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch object details'
+    });
+  }
+}));
+
+// Update object by type and ID (for edit modal)
+router.put('/object/:objectType/:id', authenticate, authorize('create_project', 'all'), asyncHandler(async (req, res) => {
+  try {
+    const { objectType, id } = req.params;
+    const updateData = req.body;
+    const conn = await getSalesforceConnection();
+
+    // Map object type to Salesforce object name
+    const objectTypeMap = {
+      'Project': 'Project__c',
+      'Project_Objective__c': 'Project_Objective__c',
+      'ProjectObjective': 'Project_Objective__c',
+      'Contributor_Project__c': 'Contributor_Project__c',
+      'ContributorProject': 'Contributor_Project__c'
+    };
+
+    const salesforceObjectName = objectTypeMap[objectType] || objectType;
+
+    // Describe the object to check which fields are updateable
+    const describeResult = await conn.sobject(salesforceObjectName).describe();
+    const updateableFields = describeResult.fields
+      .filter(f => f.updateable && f.name !== 'Id')
+      .map(f => f.name);
+
+    // Filter updateData to only include updateable fields
+    const filteredData = { Id: id };
+    Object.keys(updateData).forEach(key => {
+      if (updateableFields.includes(key)) {
+        filteredData[key] = updateData[key];
+      }
+    });
+
+    // Update the object
+    const result = await conn.sobject(salesforceObjectName).update(filteredData);
+
+    if (!result.success) {
+      const errorMsg = result.errors?.[0]?.message || 'Failed to update object';
+      throw new Error(errorMsg);
+    }
+
+    // Fetch the updated record
+    const updatedRecord = await conn.sobject(salesforceObjectName).retrieve(id);
+
+    res.json({
+      success: true,
+      object: updatedRecord
+    });
+  } catch (error) {
+    console.error('Error updating object:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message || 'Failed to update object'
     });
   }
 }));
