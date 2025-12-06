@@ -647,7 +647,7 @@
 .case-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: fixed !important;
 }
 
 .case-table thead {
@@ -655,6 +655,34 @@
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+/* Equal width columns with word wrapping */
+.case-table th,
+.case-table td {
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  hyphens: auto;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Contributor column - smaller width, scoped to case management table only */
+.case-table th.case-table-contributor-column,
+.case-table td.case-table-contributor-column,
+.case-table th[data-column="ContactId"],
+.case-table td[data-column="ContactId"],
+.case-table-container .case-table th[data-column="ContactId"],
+.case-table-container .case-table td[data-column="ContactId"] {
+  width: 12% !important;
+  max-width: 12% !important;
+  min-width: 90px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  box-sizing: border-box !important;
+  flex: 0 0 12% !important;
 }
 
 .case-table th {
@@ -666,66 +694,17 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid #d8dde6;
-  white-space: nowrap;
   background: #f3f2f2;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
-/* Default column widths - fit viewport */
-.case-table th:nth-child(1),
-.case-table td:nth-child(1) { 
-  width: 10%; 
-} /* CaseNumber */
-
-.case-table th:nth-child(2),
-.case-table td:nth-child(2) { 
-  width: 18%; 
-} /* Case_Reason__c */
-
-.case-table th:nth-child(3),
-.case-table td:nth-child(3) { 
-  width: 7%; 
-} /* Type */
-
-.case-table th:nth-child(4),
-.case-table td:nth-child(4) { 
-  width: 20%; 
-} /* ContactId */
-
-.case-table th:nth-child(5),
-.case-table td:nth-child(5) { 
-  width: 18%; 
-} /* OwnerId */
-
-.case-table th:nth-child(6),
-.case-table td:nth-child(6) { 
-  width: 7%; 
-} /* Status */
-
-.case-table th:nth-child(7),
-.case-table td:nth-child(7) { 
-  width: 10%; 
-  white-space: normal; 
-  line-height: 1.4; 
-} /* CreatedDate */
-
-/* Additional columns - allow expansion */
-.case-table th:nth-child(n+8),
-.case-table td:nth-child(n+8) { 
-  min-width: 100px; 
-  width: auto;
-} 
-
 .case-table td {
-  padding: 12px 8px;
+  padding: 12px 16px;
   font-size: 14px;
   color: #002329;
   border-bottom: 1px solid #e5e7eb;
-  word-wrap: break-word;
-  overflow: hidden;
-  text-overflow: ellipsis;
   vertical-align: top;
+  line-height: 1.4;
 }
 
 .case-table th:first-child,

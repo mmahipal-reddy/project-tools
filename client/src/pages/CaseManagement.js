@@ -8,6 +8,7 @@ import BookmarkButton from '../components/BookmarkButton';
 import CaseTable from '../components/CaseManagement/CaseTable';
 import CaseFilterBuilder from '../components/CaseManagement/CaseFilterBuilder';
 import CaseDetailView from '../components/CaseManagement/CaseDetailView';
+import useSidebarWidth from '../hooks/useSidebarWidth';
 import '../styles/CaseManagement.css';
 import '../styles/Sidebar.css';
 import '../styles/GlobalHeader.css';
@@ -29,7 +30,8 @@ const CaseManagement = () => {
     'ContactId',
     'OwnerId',
     'Status',
-    'CreatedDate'
+    'CreatedDate',
+    'CaseDuration'
   ]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -70,12 +72,16 @@ const CaseManagement = () => {
       params.append('orderDirection', 'DESC');
       
       if (selectedColumns.length > 0) {
-        const fieldsToQuery = [...selectedColumns];
+        const fieldsToQuery = selectedColumns.filter(col => col !== 'CaseDuration');
         if (selectedColumns.includes('ContactId') && !selectedColumns.includes('Contact.Name')) {
           fieldsToQuery.push('Contact.Name');
         }
         if (selectedColumns.includes('OwnerId') && !selectedColumns.includes('Owner.Name')) {
           fieldsToQuery.push('Owner.Name');
+        }
+        // Add ClosedDate if CaseDuration is selected (needed for calculation)
+        if (selectedColumns.includes('CaseDuration') && !fieldsToQuery.includes('ClosedDate')) {
+          fieldsToQuery.push('ClosedDate');
         }
         params.append('fields', fieldsToQuery.join(','));
       }
