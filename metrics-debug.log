@@ -22851,3 +22851,27 @@ Didn't understand relationship 'Contributor__c__r' in field path. If you are att
 [2025-12-03T06:28:57.041Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
 [2025-12-03T06:28:58.251Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
 [2025-12-03T06:28:59.974Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-05T06:42:42.515Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.529Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.609Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.653Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.677Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.679Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.740Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.759Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:42:42.947Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:44:12.002Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-05T06:44:12.079Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-05T06:44:12.800Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-05T06:48:09.850Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:09.936Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:10.039Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:10.094Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:10.214Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:10.250Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:10.305Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:11.116Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:48:13.341Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-05T06:49:27.862Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-05T06:49:27.952Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-05T06:49:31.006Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c

@@ -63,18 +63,29 @@ module.exports = function(app) {
         });
         
         // Send a proper JSON error response (not HTML)
+        // Handle backend unavailability gracefully - don't crash frontend
         if (!res.headersSent) {
-          res.status(502).json({
-            error: 'Bad Gateway',
-            message: 'Unable to connect to backend server. Please ensure the server is running on port 5000.',
-            code: err.code,
-            details: process.env.NODE_ENV === 'development' ? {
-              message: err.message,
-              syscall: err.syscall,
-              address: err.address,
-              port: err.port
-            } : undefined
-          });
+          // Check if it's a connection error (backend down/restarting)
+          if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET') {
+            res.status(503).json({
+              error: 'Service Unavailable',
+              message: 'Backend server is not available. It may be restarting. Please try again in a moment.',
+              code: err.code,
+              isBackendDown: true
+            });
+          } else {
+            res.status(502).json({
+              error: 'Bad Gateway',
+              message: 'Unable to connect to backend server. Please ensure the server is running on port 5000.',
+              code: err.code,
+              details: process.env.NODE_ENV === 'development' ? {
+                message: err.message,
+                syscall: err.syscall,
+                address: err.address,
+                port: err.port
+              } : undefined
+            });
+          }
         }
       },
       onProxyReq: (proxyReq, req, res) => {

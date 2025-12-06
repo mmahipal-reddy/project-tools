@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/Sidebar';
+import useSidebarWidth from '../../hooks/useSidebarWidth';
 import BookmarkButton from '../../components/BookmarkButton';
 import { Menu, LogOut, RefreshCw, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,6 +19,7 @@ import '../../styles/GlobalHeader.css';
 const ProjectPerformance = () => {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -254,7 +256,7 @@ const ProjectPerformance = () => {
     return (
       <div className="dashboard-layout">
         <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-        <div className="project-performance" style={{ marginLeft: sidebarOpen ? '320px' : '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="project-performance" style={{ marginLeft: `${sidebarWidth}px`, width: `calc(100% - ${sidebarWidth}px)`, transition: 'margin-left 0.2s ease, width 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="loading-container">
             <Loader className="spinning" size={24} />
             <p>Loading project performance data...</p>
@@ -267,7 +269,7 @@ const ProjectPerformance = () => {
   return (
     <div className="dashboard-layout">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="project-performance" style={{ marginLeft: sidebarOpen ? '320px' : '80px' }}>
+      <div className="project-performance" style={{ marginLeft: `${sidebarWidth}px`, width: `calc(100% - ${sidebarWidth}px)`, transition: 'margin-left 0.2s ease, width 0.2s ease' }}>
         <div className="project-performance-container">
           <div className="project-performance-header">
             <div className="header-content">

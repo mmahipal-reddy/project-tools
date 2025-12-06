@@ -2,6 +2,7 @@
 
 # Script to restart both frontend and backend servers
 # Usage: ./restart-servers.sh
+# Note: This restarts BOTH servers. Use restart-backend.sh to restart only backend.
 
 echo "🔄 Restarting servers..."
 

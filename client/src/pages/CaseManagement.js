@@ -15,6 +15,7 @@ import '../styles/GlobalHeader.css';
 const CaseManagement = () => {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
@@ -162,7 +163,14 @@ const CaseManagement = () => {
   return (
     <div className="dashboard-layout">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="case-management" style={{ marginLeft: sidebarOpen ? '320px' : '80px' }}>
+      <div 
+        className="case-management" 
+        style={{ 
+          marginLeft: `${sidebarWidth}px`, 
+          width: `calc(100% - ${sidebarWidth}px)`,
+          transition: 'margin-left 0.2s ease, width 0.2s ease'
+        }}
+      >
         <div className="case-management-container">
           <div className="case-management-header">
             <div className="header-content">

@@ -51,6 +51,7 @@ import ContributorTimeStatusDashboard from './pages/ContributorTimeStatusDashboa
 import ContributorMatchMatrix from './pages/ContributorMatchMatrix';
 import POPayRates from './pages/POPayRates';
 import POProductivityTargets from './pages/POProductivityTargets';
+import PMApprovals from './pages/ProjectManagement/PMApprovals/PMApprovals';
 import './App.css';
 import './styles/GlobalTableHeaders.css';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -316,6 +317,14 @@ function App() {
               element={
                 <RoleProtectedRoute>
                   <POProductivityTargets />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/pm-approvals"
+              element={
+                <RoleProtectedRoute>
+                  <PMApprovals />
                 </RoleProtectedRoute>
               }
             />

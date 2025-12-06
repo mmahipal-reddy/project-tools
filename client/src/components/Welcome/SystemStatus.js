@@ -23,6 +23,7 @@ const SystemStatus = ({ status, loading }) => {
       case 'healthy':
       case 'operational':
       case 'running':
+      case 'configured':
         return <CheckCircle2 size={16} className="status-icon status-ok" />;
       case 'not_configured':
       case 'not_run':
@@ -42,6 +43,8 @@ const SystemStatus = ({ status, loading }) => {
         return 'Operational';
       case 'running':
         return 'Running';
+      case 'configured':
+        return 'Configured';
       case 'not_configured':
         return 'Not Configured';
       case 'not_run':
