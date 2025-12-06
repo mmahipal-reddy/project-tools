@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import './UserProfileDropdown.css';
+import '../../styles/GlobalHeader.css';
 
 const UserProfileDropdown = () => {
   const { user, logout } = useAuth();

@@ -692,18 +692,483 @@ router.get('/object/:objectType/:id', authenticate, authorize('view_project', 'a
       }
     });
 
-    res.json({
+    // Fetch child relationships (related records)
+    const childRelationships = [];
+    const relatedRecords = {};
+    
+    // Helper function to fetch related records for a child object
+    const fetchRelatedRecords = async (childObjectName, parentFieldName, relationshipName, label) => {
+      try {
+        console.log(`[ObjectViewModal] fetchRelatedRecords called: ${childObjectName}, parentField: ${parentFieldName}, relationship: ${relationshipName}`);
+        
+        // Get fields for child object
+        let childFields = ['Id', 'Name'];
+        try {
+          const childDescribe = await conn.sobject(childObjectName).describe();
+          const childReadableFields = childDescribe.fields
+            .filter(f => 
+              f.type !== 'base64' && 
+              !f.name.includes('__r') && 
+              f.name !== 'attributes' &&
+              f.name !== 'Id' &&
+              f.name !== 'Name' && // Exclude Name since we already have it
+              f.name !== parentFieldName // Exclude the parent field itself
+            )
+            .slice(0, 15) // Get more fields
+            .map(f => f.name);
+          
+          // Remove duplicates and ensure Id and Name are first
+          const allFields = ['Id', 'Name', ...childReadableFields];
+          childFields = [...new Set(allFields)]; // Remove duplicates
+          console.log(`[ObjectViewModal] Child fields for ${childObjectName}:`, childFields.slice(0, 5), '... (total:', childFields.length, ')');
+        } catch (childDescribeError) {
+          console.warn(`[ObjectViewModal] Could not describe child object ${childObjectName}, using default fields:`, childDescribeError.message);
+        }
+        
+        // Query child records using the parent field
+        // Ensure ID is properly escaped
+        const sanitizedId = String(id).replace(/'/g, "\\'");
+        const childQuery = `SELECT ${childFields.join(', ')} FROM ${childObjectName} WHERE ${parentFieldName} = '${sanitizedId}' ORDER BY Name LIMIT 100`;
+        
+        console.log(`[ObjectViewModal] Executing query for ${childObjectName}:`);
+        console.log(`[ObjectViewModal]   - Parent Object: ${salesforceObjectName}`);
+        console.log(`[ObjectViewModal]   - Parent ID: ${id}`);
+        console.log(`[ObjectViewModal]   - Child Object: ${childObjectName}`);
+        console.log(`[ObjectViewModal]   - Parent Field: ${parentFieldName}`);
+        console.log(`[ObjectViewModal]   - Full Query: ${childQuery}`);
+        
+        const childResult = await conn.query(childQuery);
+        console.log(`[ObjectViewModal] Query result for ${childObjectName}:`);
+        console.log(`[ObjectViewModal]   - Total Size: ${childResult.totalSize}`);
+        console.log(`[ObjectViewModal]   - Records Returned: ${childResult.records ? childResult.records.length : 0}`);
+        console.log(`[ObjectViewModal]   - Done: ${childResult.done}`);
+        
+        const records = childResult.records || [];
+        
+        if (records.length === 0 && childResult.totalSize > 0) {
+          console.warn(`[ObjectViewModal] ⚠️ WARNING: Query returned totalSize=${childResult.totalSize} but records array is empty!`);
+        }
+        
+        if (records.length > 0) {
+          console.log(`[ObjectViewModal] ✅ Successfully fetched ${records.length} records for ${relationshipName}`);
+          console.log(`[ObjectViewModal] First record sample:`, JSON.stringify(records[0]).substring(0, 200));
+        } else {
+          console.log(`[ObjectViewModal] ℹ️ No records found for ${relationshipName} (this is OK if none exist)`);
+        }
+        
+        // Always add the relationship, even if no records found (so tab is enabled)
+        childRelationships.push({
+          relationshipName: relationshipName,
+          label: label || childObjectName,
+          field: parentFieldName,
+          childSObject: childObjectName,
+          recordCount: records.length
+        });
+        
+        relatedRecords[relationshipName] = records;
+        console.log(`[ObjectViewModal] ✅ Added relationship ${relationshipName} with ${records.length} records to response`);
+        
+        return true;
+      } catch (error) {
+        console.error(`[ObjectViewModal] Error fetching related records for ${childObjectName}:`, error.message);
+        console.error(`[ObjectViewModal] Error stack:`, error.stack);
+        // Still add the relationship with 0 records so tab shows
+        childRelationships.push({
+          relationshipName: relationshipName,
+          label: label || childObjectName,
+          field: parentFieldName,
+          childSObject: childObjectName,
+          recordCount: 0
+        });
+        relatedRecords[relationshipName] = [];
+        return false;
+      }
+    };
+    
+    // Define known relationships for common objects
+    const knownRelationships = {
+      'Project__c': [
+        { childObject: 'Project_Objective__c', parentField: 'Project__c', relationshipName: 'Project_Objectives__r', label: 'Project Objectives' },
+        { childObject: 'Project_Page__c', parentField: 'Project__c', relationshipName: 'Project_Pages__r', label: 'Project Pages' },
+        { childObject: 'Project_Qualification_Step__c', parentField: 'Project__c', relationshipName: 'Project_Qualification_Steps__r', label: 'Project Qualification Steps' },
+        { childObject: 'Project_Team__c', parentField: 'Project__c', relationshipName: 'Project_Teams__r', label: 'Project Teams' },
+        { childObject: 'Contributor_Project__c', parentField: 'Project__c', relationshipName: 'Contributor_Projects__r', label: 'Contributor Projects' }
+      ],
+      'Project_Objective__c': [
+        { childObject: 'Project_Page__c', parentField: 'Project_Objective__c', relationshipName: 'Project_Pages__r', label: 'Project Pages' },
+        { childObject: 'Project_Qualification_Step__c', parentField: 'Project_Objective__c', relationshipName: 'Project_Qualification_Steps__r', label: 'Project Qualification Steps' },
+        { childObject: 'Project_Workstream__c', parentField: 'Project_Objective__c', relationshipName: 'Project_Workstreams__r', label: 'Project Workstreams' }
+      ],
+      'Contributor_Project__c': [
+        // Contributor Projects typically don't have child relationships, but we can check
+      ]
+    };
+    
+    // First, try known relationships for this object type
+    console.log(`[ObjectViewModal] Checking known relationships for: ${salesforceObjectName}`);
+    console.log(`[ObjectViewModal] Available known relationship keys:`, Object.keys(knownRelationships));
+    
+    if (knownRelationships[salesforceObjectName]) {
+      const rels = knownRelationships[salesforceObjectName];
+      console.log(`[ObjectViewModal] ✅ Found known relationships for ${salesforceObjectName}: ${rels.length} relationships`);
+      console.log(`[ObjectViewModal] Relationships:`, rels.map(r => `${r.label} (${r.childObject})`).join(', '));
+      console.log(`[ObjectViewModal] Object ID: ${id}`);
+      
+      // Execute all relationship queries in parallel for better performance
+      const relationshipPromises = rels.map(rel => {
+        console.log(`[ObjectViewModal] 🔄 Queuing relationship: ${rel.label} (${rel.childObject})`);
+        return fetchRelatedRecords(rel.childObject, rel.parentField, rel.relationshipName, rel.label).catch(err => {
+          console.error(`[ObjectViewModal] ❌ Failed to fetch ${rel.label}:`, err.message);
+          return false; // Return false on error so Promise.all doesn't fail
+        });
+      });
+      
+      const results = await Promise.all(relationshipPromises);
+      const successCount = results.filter(r => r === true).length;
+      console.log(`[ObjectViewModal] ✅ Completed ${rels.length} known relationship queries (${successCount} successful)`);
+    } else {
+      console.log(`[ObjectViewModal] ❌ No known relationships defined for ${salesforceObjectName}`);
+      console.log(`[ObjectViewModal] Available keys:`, Object.keys(knownRelationships));
+    }
+    
+    // Also try to discover relationships from describe result
+    if (describeResult.childRelationships && describeResult.childRelationships.length > 0) {
+      console.log(`[ObjectViewModal] Found ${describeResult.childRelationships.length} child relationships from describe`);
+      
+      // Process child relationships (limit to first 20 to avoid timeout)
+      const relationshipsToProcess = describeResult.childRelationships.slice(0, 20);
+      
+      for (const childRel of relationshipsToProcess) {
+        // Skip if we already have this relationship
+        if (relatedRecords[childRel.relationshipName]) {
+          console.log(`[ObjectViewModal] Skipping ${childRel.relationshipName} - already fetched`);
+          continue;
+        }
+        
+        if (childRel.relationshipName && childRel.childSObject && childRel.field) {
+          console.log(`[ObjectViewModal] Processing child relationship: ${childRel.relationshipName} (${childRel.childSObject})`);
+          await fetchRelatedRecords(
+            childRel.childSObject, 
+            childRel.field, 
+            childRel.relationshipName, 
+            childRel.childSObject
+          );
+        } else {
+          console.warn(`[ObjectViewModal] Child relationship missing required fields:`, {
+            relationshipName: childRel.relationshipName,
+            childSObject: childRel.childSObject,
+            field: childRel.field
+          });
+        }
+      }
+    }
+
+    console.log(`[ObjectViewModal] Returning response with ${childRelationships.length} child relationships`);
+    console.log(`[ObjectViewModal] Related records keys:`, Object.keys(relatedRecords));
+    console.log(`[ObjectViewModal] Child relationships details:`, JSON.stringify(childRelationships.map(r => ({
+      relationshipName: r.relationshipName,
+      label: r.label,
+      recordCount: r.recordCount
+    })), null, 2));
+    
+    // Ensure we always return arrays/objects even if empty
+    const response = {
       success: true,
       object: objectData,
       fieldLabels: fieldLabels,
       fieldMetadata: fieldMetadata,
-      fieldSections: fieldSections
-    });
+      fieldSections: fieldSections,
+      childRelationships: Array.isArray(childRelationships) ? childRelationships : [],
+      relatedRecords: relatedRecords && typeof relatedRecords === 'object' ? relatedRecords : {}
+    };
+    
+    console.log(`[ObjectViewModal] Response childRelationships type:`, typeof response.childRelationships, Array.isArray(response.childRelationships));
+    console.log(`[ObjectViewModal] Response childRelationships length:`, response.childRelationships.length);
+    
+    res.json(response);
   } catch (error) {
     console.error('Error fetching object details:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch object details'
+    });
+  }
+}));
+
+// Get funnel data for a specific project
+router.get('/object/:objectType/:id/funnel', authenticate, authorize('view_project', 'all'), asyncHandler(async (req, res) => {
+  try {
+    const { objectType, id } = req.params;
+    const conn = await getSalesforceConnection();
+
+    // Map object type to Salesforce object name
+    const objectTypeMap = {
+      'Project': 'Project__c',
+      'Project_Objective__c': 'Project_Objective__c',
+      'ProjectObjective': 'Project_Objective__c',
+      'Contributor_Project__c': 'Contributor_Project__c',
+      'ContributorProject': 'Contributor_Project__c'
+    };
+
+    const salesforceObjectName = objectTypeMap[objectType] || objectType;
+
+    // Only support funnel for Project__c
+    if (salesforceObjectName !== 'Project__c') {
+      return res.json({
+        success: true,
+        data: {
+          funnelStages: [],
+          conversions: [],
+          totalActive: 0,
+          statusCounts: {},
+          lastRefreshed: new Date().toISOString()
+        }
+      });
+    }
+
+    console.log(`[ObjectViewModal] Fetching funnel data for Project ${id}`);
+
+    // Discover Project Objective field on Contributor_Project__c
+    const possibleProjectObjectiveFields = [
+      'Project_Objective__c',
+      'ProjectObjective__c',
+      'Objective__c'
+    ];
+    
+    let projectObjectiveField = null;
+    for (const fieldName of possibleProjectObjectiveFields) {
+      try {
+        const testQuery = `SELECT ${fieldName} FROM Contributor_Project__c WHERE ${fieldName} != null LIMIT 1`;
+        await conn.query(testQuery);
+        projectObjectiveField = fieldName;
+        break;
+      } catch (error) {
+        continue;
+      }
+    }
+    
+    if (!projectObjectiveField) {
+      try {
+        const describeResult = await conn.sobject('Contributor_Project__c').describe();
+        const field = describeResult.fields.find(f => 
+          f.name === 'Project_Objective__c' || 
+          f.name === 'ProjectObjective__c' || 
+          f.name === 'Objective__c'
+        );
+        if (field) {
+          projectObjectiveField = field.name;
+        }
+      } catch (error) {
+        console.error('Error describing Contributor_Project__c:', error);
+      }
+    }
+    
+    if (!projectObjectiveField) {
+      return res.status(500).json({
+        success: false,
+        error: 'Could not determine Project Objective field name on Contributor_Project__c'
+      });
+    }
+    
+    // Get status distribution for this specific project
+    const statusQuery = `
+      SELECT 
+        Status__c status,
+        COUNT(Id) RecordCount
+      FROM Contributor_Project__c
+      WHERE Status__c != null AND Project__c = '${id.replace(/'/g, "\\'")}'
+      GROUP BY Status__c
+      LIMIT 100
+    `;
+    
+    console.log(`[ObjectViewModal] Executing funnel status query: ${statusQuery.substring(0, 200)}...`);
+    
+    const statusResult = await conn.query(statusQuery);
+    const statusCounts = {};
+    (statusResult.records || []).forEach(r => {
+      statusCounts[r.status] = r.RecordCount || 0;
+    });
+    
+    console.log(`[ObjectViewModal] Status counts:`, statusCounts);
+    
+    // Calculate funnel stages
+    const funnelStages = [
+      { name: 'Draft', count: statusCounts['Draft'] || 0 },
+      { name: 'Invite', count: statusCounts['Invite'] || 0 },
+      { name: 'App Received', count: statusCounts['App Received'] || 0 },
+      { name: 'Matched', count: statusCounts['Matched'] || 0 },
+      { name: 'Qualified', count: statusCounts['Qualified'] || 0 },
+      { name: 'Active', count: statusCounts['Active'] || 0 },
+      { name: 'Production', count: statusCounts['Production'] || 0 }
+    ];
+    
+    // Calculate conversion rates
+    const conversions = [];
+    for (let i = 0; i < funnelStages.length - 1; i++) {
+      const current = funnelStages[i].count;
+      const next = funnelStages[i + 1].count;
+      const rate = current > 0 ? ((next / current) * 100).toFixed(2) : 0;
+      conversions.push({
+        from: funnelStages[i].name,
+        to: funnelStages[i + 1].name,
+        rate: parseFloat(rate),
+        fromCount: current,
+        toCount: next
+      });
+    }
+    
+    // Get active contributors count
+    const activeCount = statusCounts['Active'] || 0;
+    const productionCount = statusCounts['Production'] || 0;
+    const totalActive = activeCount + productionCount;
+    
+    console.log(`[ObjectViewModal] Funnel data calculated: ${funnelStages.length} stages, ${conversions.length} conversions, ${totalActive} total active`);
+    
+    // Get Project Roster Funnel data (Project Objectives with status breakdown)
+    let rosterFunnelData = [];
+    try {
+      // Get all Project Objectives for this project
+      const projectObjectivesQuery = `
+        SELECT Id, Name, Project_Objective_Name__c
+        FROM Project_Objective__c
+        WHERE Project__c = '${id.replace(/'/g, "\\'")}'
+        ORDER BY Name
+        LIMIT 500
+      `;
+      
+      const projectObjectivesResult = await conn.query(projectObjectivesQuery);
+      const projectObjectives = projectObjectivesResult.records || [];
+      const projectObjectiveIds = projectObjectives.map(po => po.Id);
+      
+      if (projectObjectiveIds.length > 0) {
+        // Discover Project Objective field on Contributor_Project__c
+        const possibleProjectObjectiveFields = [
+          'Project_Objective__c',
+          'ProjectObjective__c',
+          'Objective__c'
+        ];
+        
+        let projectObjectiveField = null;
+        for (const fieldName of possibleProjectObjectiveFields) {
+          try {
+            const testQuery = `SELECT ${fieldName} FROM Contributor_Project__c WHERE ${fieldName} != null LIMIT 1`;
+            await conn.query(testQuery);
+            projectObjectiveField = fieldName;
+            break;
+          } catch (error) {
+            continue;
+          }
+        }
+        
+        if (projectObjectiveField) {
+          // Query for counts grouped by Project Objective and Status
+          const idsString = projectObjectiveIds.map(id => `'${String(id).replace(/'/g, "''")}'`).join(',');
+          const countQuery = `
+            SELECT 
+              ${projectObjectiveField} ProjectObjectiveId,
+              Status__c Status,
+              COUNT(Id) RecordCount
+            FROM Contributor_Project__c
+            WHERE ${projectObjectiveField} IN (${idsString})
+              AND Status__c != null
+            GROUP BY ${projectObjectiveField}, Status__c
+            LIMIT 10000
+          `;
+          
+          const countResult = await conn.query(countQuery);
+          const statusCounts = countResult.records || [];
+          
+          // Create a map: ProjectObjectiveId -> Status -> Count
+          const countsByObjective = new Map();
+          
+          projectObjectives.forEach(po => {
+            const poName = po.Project_Objective_Name__c || po.Name || '';
+            countsByObjective.set(po.Id, {
+              id: po.Id,
+              name: poName,
+              Draft: 0,
+              Invite: 0,
+              'App Received': 0,
+              Matched: 0,
+              Qualified: 0,
+              Active: 0,
+              Production: 0,
+              Removed: 0,
+              Total: 0
+            });
+          });
+          
+          // Populate counts from query results
+          statusCounts.forEach(record => {
+            const objectiveId = record.ProjectObjectiveId;
+            const status = record.Status || '';
+            const count = record.RecordCount || 0;
+            
+            if (countsByObjective.has(objectiveId)) {
+              const objectiveData = countsByObjective.get(objectiveId);
+              
+              // Map status values (case-insensitive matching)
+              const statusLower = status.toLowerCase().trim();
+              if (statusLower === 'draft') {
+                objectiveData.Draft += count;
+              } else if (statusLower === 'invite' || statusLower === 'invited' || statusLower === 'invitation') {
+                objectiveData.Invite += count;
+              } else if (statusLower === 'app received' || statusLower === 'appreceived' || statusLower === 'application received' || statusLower === 'app_received') {
+                objectiveData['App Received'] += count;
+              } else if (statusLower === 'matched' || statusLower === 'match') {
+                objectiveData.Matched += count;
+              } else if (statusLower === 'qualified' || statusLower === 'qualify') {
+                objectiveData.Qualified += count;
+              } else if (statusLower === 'active') {
+                objectiveData.Active += count;
+              } else if (statusLower === 'production' || statusLower === 'prod') {
+                objectiveData.Production += count;
+              } else if (statusLower === 'removed' || statusLower === 'remove') {
+                objectiveData.Removed += count;
+              }
+            }
+          });
+          
+          // Calculate totals
+          countsByObjective.forEach((objectiveData) => {
+            objectiveData.Total = 
+              objectiveData.Draft +
+              objectiveData.Invite +
+              objectiveData['App Received'] +
+              objectiveData.Matched +
+              objectiveData.Qualified +
+              objectiveData.Active +
+              objectiveData.Production +
+              objectiveData.Removed;
+          });
+          
+          // Convert to array and sort by name
+          rosterFunnelData = Array.from(countsByObjective.values())
+            .filter(po => po.Total > 0) // Only include objectives with records
+            .sort((a, b) => a.name.localeCompare(b.name));
+        }
+      }
+    } catch (rosterError) {
+      console.error('[ObjectViewModal] Error fetching roster funnel data:', rosterError);
+      // Don't fail the entire request if roster funnel fails
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        funnelStages,
+        conversions,
+        totalActive,
+        statusCounts,
+        rosterFunnel: rosterFunnelData,
+        lastRefreshed: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('[ObjectViewModal] Error fetching funnel data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch funnel data'
     });
   }
 }));
