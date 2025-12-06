@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Users, Plus, Edit, Trash2, LogOut, Menu, Shield, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Menu, Shield, Key } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import Sidebar from '../components/Sidebar';
@@ -581,15 +582,7 @@ const UserManagement = ({ asTab = false }) => {
             </div>
           </div>
           <div className="header-user-profile">
-            <div className="user-profile">
-              <div className="user-avatar">
-                {(user?.email || 'U').charAt(0).toUpperCase()}
-              </div>
-              <span className="user-name">{user?.email || 'User'}</span>
-              <button className="logout-btn" onClick={logout} title="Logout">
-                <LogOut size={18} />
-              </button>
-            </div>
+            <UserProfileDropdown />
           </div>
         </div>
 

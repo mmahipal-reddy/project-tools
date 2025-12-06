@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, Shield } from 'lucide-react';
+import { Menu, Shield } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { ROLES, PERMISSIONS, hasPermission } from '../utils/rbac';
 import UserManagement from './UserManagement';
 import Settings from './Settings';
@@ -24,28 +25,46 @@ const Administration = () => {
   const canManageSalesforce = hasPermission(userRole, PERMISSIONS.MANAGE_SALESFORCE_CONNECTION);
   const canViewAdministration = hasPermission(userRole, PERMISSIONS.VIEW_ADMINISTRATION);
   
+  // Settings tab is now available to all users
+  const canViewSettings = true; // All users can access Settings
+  
   // Set default active tab based on available permissions
   const getDefaultTab = () => {
+    // Check URL params for tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam === 'settings' && canViewSettings) {
+      return 'settings';
+    }
     if (canManageSalesforce) return 'salesforce-settings';
     if (canManageUsers) return 'user-management';
-    if (canManageSettings) return 'settings';
+    if (canViewSettings) return 'settings';
     return 'salesforce-settings';
   };
   
   const [activeTab, setActiveTab] = useState(getDefaultTab());
+  
+  // Handle tab changes from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      if (tabParam === 'settings' && canViewSettings) {
+        setActiveTab('settings');
+      }
+    }
+  }, [canViewSettings]);
 
   // Update active tab if current tab becomes unavailable
   useEffect(() => {
     if (activeTab === 'user-management' && !canManageUsers) {
       setActiveTab(getDefaultTab());
     }
-    if (activeTab === 'settings' && !canManageSettings) {
-      setActiveTab(getDefaultTab());
-    }
+    // Settings is always available, so no need to check
     if (activeTab === 'salesforce-settings' && !canManageSalesforce) {
       setActiveTab(getDefaultTab());
     }
-  }, [activeTab, canManageUsers, canManageSettings, canManageSalesforce]);
+  }, [activeTab, canManageUsers, canManageSalesforce]);
 
   // Check if user has access to Administration page
   if (!canViewAdministration) {
@@ -109,15 +128,7 @@ const Administration = () => {
             </div>
           </div>
           <div className="header-user-profile">
-            <div className="user-profile">
-              <div className="user-avatar">
-                {(user?.email || 'U').charAt(0).toUpperCase()}
-              </div>
-              <span className="user-name">{user?.email || 'User'}</span>
-              <button className="logout-btn" onClick={logout} title="Logout">
-                <LogOut size={18} />
-              </button>
-            </div>
+            <UserProfileDropdown />
           </div>
         </div>
 
@@ -164,9 +175,15 @@ const Administration = () => {
               User Management
             </button>
           )}
-          {canManageSettings && (
+          {canViewSettings && (
             <button
-              onClick={() => setActiveTab('settings')}
+              onClick={() => {
+                setActiveTab('settings');
+                // Update URL without page reload
+                const url = new URL(window.location);
+                url.searchParams.set('tab', 'settings');
+                window.history.pushState({}, '', url);
+              }}
               style={{
                 padding: '12px 20px',
                 background: 'none',
@@ -229,7 +246,7 @@ const Administration = () => {
         }}>
           {activeTab === 'salesforce-settings' && canManageSalesforce && <SalesforceSettings asTab={true} />}
           {activeTab === 'user-management' && canManageUsers && <UserManagement asTab={true} />}
-          {activeTab === 'settings' && canManageSettings && <Settings asTab={true} />}
+          {activeTab === 'settings' && canViewSettings && <Settings asTab={true} />}
           {activeTab === 'audit-logs' && userRole === ROLES.ADMIN && <AuditLogs />}
           {activeTab === 'history' && userRole === ROLES.ADMIN && <History />}
         </div>

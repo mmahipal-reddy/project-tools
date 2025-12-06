@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut, RefreshCw, BarChart3, TrendingUp, Users, Clock, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { Menu, RefreshCw, BarChart3, TrendingUp, Users, Clock, AlertCircle, CheckCircle, X } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, ReferenceLine } from 'recharts';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
@@ -818,15 +819,7 @@ const CaseAnalyticsDashboard = () => {
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Case Analytics Dashboard" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

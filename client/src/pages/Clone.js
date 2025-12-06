@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
-import { Search, Menu, LogOut, Send, Eye, Loader, X, CheckCircle, XCircle, Info, Plus as PlusIcon, X as XIcon, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Search, Menu, Send, Eye, Loader, X, CheckCircle, XCircle, Info, Plus as PlusIcon, X as XIcon, ChevronRight, ChevronLeft } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
@@ -1335,15 +1336,7 @@ const Clone = () => {
                 </div>
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

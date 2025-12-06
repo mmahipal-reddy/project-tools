@@ -4,7 +4,9 @@ import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
 import ClientToolAccountValidationWarning from '../components/ClientToolAccountValidationWarning';
 import ClientToolAccountAnalytics from '../components/ClientToolAccountAnalytics';
-import { Menu, LogOut, Plus, Search, Check, X, RefreshCw, Wrench, Link as LinkIcon, Send, Edit, Loader, Download, Upload, FileText, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Menu, Plus, Search, Check, X, RefreshCw, Wrench, Link as LinkIcon, Send, Edit, Loader, Download, Upload, FileText, AlertTriangle, BarChart3 } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
+import ObjectViewModal from '../components/ClientToolAccount/ObjectViewModal';
 import apiClient from '../config/api';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -50,6 +52,12 @@ const ClientToolAccount = () => {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState('management'); // 'management', 'analytics'
+  
+  // View modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewModalObjectType, setViewModalObjectType] = useState(null);
+  const [viewModalObjectId, setViewModalObjectId] = useState(null);
+  const [viewModalObjectName, setViewModalObjectName] = useState(null);
   
   // Validation states
   const [validationWarnings, setValidationWarnings] = useState({}); // { projectId: [warnings] }
@@ -1337,15 +1345,7 @@ const ClientToolAccount = () => {
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Client Tool Account" pageType="page" />
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>
@@ -1887,6 +1887,7 @@ const ClientToolAccount = () => {
                       </th>
                       <th>Contributor Project Name</th>
                       <th>Project</th>
+                      <th>Project Objective</th>
                       <th>Client Tool Account Used</th>
                       <th>Actions</th>
                     </tr>
@@ -1901,8 +1902,54 @@ const ClientToolAccount = () => {
                             onChange={() => toggleBulkSelection(project.id)}
                           />
                         </td>
-                        <td>{project.contributorProjectName || 'N/A'}</td>
-                        <td>{project.project || 'N/A'}</td>
+                        <td>
+                          <span 
+                            className="clickable-field"
+                            onClick={() => {
+                              if (project.id) {
+                                setViewModalObjectType('Contributor_Project__c');
+                                setViewModalObjectId(project.id);
+                                setViewModalObjectName(project.contributorProjectName || 'Contributor Project');
+                                setShowViewModal(true);
+                              }
+                            }}
+                            style={{ cursor: project.id ? 'pointer' : 'default' }}
+                          >
+                            {project.contributorProjectName || 'N/A'}
+                          </span>
+                        </td>
+                        <td>
+                          <span 
+                            className="clickable-field"
+                            onClick={() => {
+                              if (project.projectId) {
+                                setViewModalObjectType('Project');
+                                setViewModalObjectId(project.projectId);
+                                setViewModalObjectName(project.project || 'Project');
+                                setShowViewModal(true);
+                              }
+                            }}
+                            style={{ cursor: project.projectId ? 'pointer' : 'default' }}
+                          >
+                            {project.project || 'N/A'}
+                          </span>
+                        </td>
+                        <td>
+                          <span 
+                            className="clickable-field"
+                            onClick={() => {
+                              if (project.projectObjectiveId) {
+                                setViewModalObjectType('Project_Objective__c');
+                                setViewModalObjectId(project.projectObjectiveId);
+                                setViewModalObjectName(project.projectObjective || 'Project Objective');
+                                setShowViewModal(true);
+                              }
+                            }}
+                            style={{ cursor: project.projectObjectiveId ? 'pointer' : 'default' }}
+                          >
+                            {project.projectObjective || 'N/A'}
+                          </span>
+                        </td>
                         <td>
                           {project.clientToolAccountUsed ? (
                             <span style={{ color: 'var(--success)' }}>{project.clientToolAccountUsedName || project.clientToolAccountUsed}</span>
@@ -2103,6 +2150,20 @@ const ClientToolAccount = () => {
           )}
         </div>
       </div>
+
+      {/* Object View Modal */}
+      <ObjectViewModal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setViewModalObjectType(null);
+          setViewModalObjectId(null);
+          setViewModalObjectName(null);
+        }}
+        objectType={viewModalObjectType}
+        objectId={viewModalObjectId}
+        objectName={viewModalObjectName}
+      />
     </div>
   );
 };

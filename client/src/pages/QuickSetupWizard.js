@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { saveDraftQuickSetup, loadDraftQuickSetup, deleteDraftQuickSetup } from '../utils/draftStorage';
 import { getErrorMessage, handleError } from '../utils/errorHandler';
 import { sanitizeObject } from '../utils/security';
-import { Search, Info, Menu, Send, Save, X, LogOut, Sparkles, Plus, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Info, Menu, Send, Save, X, Sparkles, Plus, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
@@ -1574,15 +1575,7 @@ const QuickSetupWizard = () => {
                 </div>
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

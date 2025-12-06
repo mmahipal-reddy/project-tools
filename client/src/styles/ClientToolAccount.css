@@ -93,6 +93,15 @@
   gap: var(--spacing-sm);
 }
 
+/* Clickable field styles */
+.clickable-field {
+  transition: opacity 0.2s;
+}
+
+.clickable-field:hover {
+  opacity: 0.8;
+}
+
 .client-tool-account .user-avatar {
   width: 40px;
   height: 40px;

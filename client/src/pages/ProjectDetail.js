@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import { saveDraftProject, loadDraftProject } from '../utils/draftStorage';
-import { CheckCircle, XCircle, Edit, ArrowLeft, Menu, FileJson, X, Copy, Check, LogOut, Loader } from 'lucide-react';
+import { CheckCircle, XCircle, Edit, ArrowLeft, Menu, FileJson, X, Copy, Check, Loader } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
@@ -291,15 +292,7 @@ const ProjectDetail = () => {
               </div>
             </div>
             <div className="header-user-profile">
-              <div className="user-profile">
-                <div className="user-avatar">
-                  {(user?.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                <span className="user-name">{user?.email || 'User'}</span>
-                <button className="logout-btn" onClick={logout} title="Logout">
-                  <LogOut size={18} />
-                </button>
-              </div>
+              <UserProfileDropdown />
             </div>
           </div>
         </div>

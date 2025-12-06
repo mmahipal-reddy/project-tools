@@ -3,7 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import Sidebar from '../../components/Sidebar';
 import useSidebarWidth from '../../hooks/useSidebarWidth';
 import BookmarkButton from '../../components/BookmarkButton';
-import { Menu, LogOut, RefreshCw, Loader } from 'lucide-react';
+import { Menu, RefreshCw, Loader } from 'lucide-react';
+import UserProfileDropdown from '../../components/UserProfileDropdown/UserProfileDropdown';
 import toast from 'react-hot-toast';
 import apiClient from '../../config/api';
 import { useGPCFilter } from '../../context/GPCFilterContext';
@@ -286,15 +287,7 @@ const ProjectPerformance = () => {
               <div className="header-actions">
                 <div className="header-user-profile">
                   <BookmarkButton pageName="Project Performance Dashboard" pageType="page" />
-                  <div className="user-profile">
-                    <div className="user-avatar">
-                      {(user?.email || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <span className="user-name">{user?.email || 'User'}</span>
-                    <button className="logout-btn" onClick={logout} title="Logout">
-                      <LogOut size={18} />
-                    </button>
-                  </div>
+                  <UserProfileDropdown />
                 </div>
               </div>
             </div>

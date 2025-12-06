@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import CreateWorkStream from './CreateWorkStream';
 import WorkStreamReporting from './WorkStreamReporting';
 import WorkStreamAnalyticsDashboard from '../components/WorkStreamAnalytics/WorkStreamAnalyticsDashboard';
@@ -40,15 +41,7 @@ const WorkstreamManagement = () => {
                 </div>
               </div>
               <div className="header-user-profile">
-                <div className="user-profile">
-                  <div className="user-avatar">
-                    {(user?.email || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="user-name">{user?.email || 'User'}</span>
-                  <button className="logout-btn" onClick={logout} title="Logout">
-                    <LogOut size={18} />
-                  </button>
-                </div>
+                <UserProfileDropdown />
               </div>
             </div>
           </div>

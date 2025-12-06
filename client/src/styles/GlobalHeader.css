@@ -92,6 +92,9 @@
   align-items: center;
   gap: var(--spacing-md);
   flex-shrink: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 99999;
 }
 
 /* User profile container */
