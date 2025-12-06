@@ -5,6 +5,25 @@ import TableCell from '../Table/TableCell';
 
 const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnChange, onCaseClick }) => {
   const [showColumnSelector, setShowColumnSelector] = useState(false);
+  
+  // Calculate column width - Contributor column is smaller
+  const getColumnWidth = (columnName) => {
+    if (selectedColumns.length === 0) return 'auto';
+    
+    // Contributor column (ContactId) gets 12% width
+    if (columnName === 'ContactId') {
+      return '12%';
+    }
+    
+    // Calculate remaining width for other columns
+    const contributorColumnCount = selectedColumns.filter(col => col === 'ContactId').length;
+    const otherColumnCount = selectedColumns.length - contributorColumnCount;
+    const contributorWidth = contributorColumnCount * 12; // 12% per contributor column
+    const remainingWidth = 100 - contributorWidth;
+    
+    // Distribute remaining width equally among other columns
+    return otherColumnCount > 0 ? `${remainingWidth / otherColumnCount}%` : 'auto';
+  };
 
   const getFieldLabel = (fieldName) => {
     const labelMap = {
@@ -12,7 +31,8 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
       'ContactId': 'Contributor',
       'OwnerId': 'Case Owner',
       'CaseNumber': 'Case Number',
-      'CreatedDate': 'Date/Time Opened'
+      'CreatedDate': 'Date/Time Opened',
+      'CaseDuration': 'Case Duration'
     };
     
     if (labelMap[fieldName]) {
@@ -23,7 +43,36 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
     return field ? field.label : fieldName;
   };
 
+  const calculateCaseDuration = (caseItem) => {
+    const createdDate = caseItem.CreatedDate;
+    const closedDate = caseItem.ClosedDate;
+    
+    if (!createdDate) return '';
+    
+    const startDate = createdDate instanceof Date ? createdDate : new Date(createdDate);
+    const endDate = closedDate ? (closedDate instanceof Date ? closedDate : new Date(closedDate)) : new Date();
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '';
+    
+    const diffMs = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffDays > 0) {
+      return `${diffDays}d ${diffHours}h`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h ${diffMinutes}m`;
+    } else {
+      return `${diffMinutes}m`;
+    }
+  };
+
   const getFieldValue = (caseItem, fieldName) => {
+    if (fieldName === 'CaseDuration') {
+      return calculateCaseDuration(caseItem);
+    }
+    
     if (fieldName.includes('.')) {
       const [relationship, field] = fieldName.split('.');
       return caseItem[relationship]?.[field] || caseItem[`${relationship}__r`]?.[field] || '';
@@ -70,6 +119,10 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
   const formatValueForCSV = (value, fieldName) => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    
+    if (fieldName === 'CaseDuration') {
+      return String(value);
+    }
     
     if (fieldName === 'CreatedDate' || fieldName === 'LastModifiedDate' || fieldName === 'ClosedDate') {
       if (value instanceof Date || (typeof value === 'string' && value)) {
@@ -137,7 +190,8 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
     'ContactId',
     'OwnerId',
     'Status',
-    'CreatedDate'
+    'CreatedDate',
+    'CaseDuration'
   ];
 
   if (loading) {
@@ -179,7 +233,7 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
               </div>
               <div className="column-selector-list">
                 {availableFields
-                  .filter(field => !defaultColumns.includes(field.name))
+                  .filter(field => !defaultColumns.includes(field.name) && field.name !== 'CaseDuration')
                   .map(field => (
                     <label key={field.name} className="column-selector-item">
                       <input
@@ -203,12 +257,28 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
         </div>
       ) : (
         <div className="case-table-scroll-wrapper">
-          <table className="case-table">
+          <table 
+            className="case-table"
+          >
             <thead>
               <tr>
-                {selectedColumns.map(column => (
-                  <TableHeader key={column}>{getFieldLabel(column)}</TableHeader>
-                ))}
+                {selectedColumns.map(column => {
+                  const colWidth = getColumnWidth(column);
+                  const isContributor = column === 'ContactId';
+                  const style = isContributor 
+                    ? { width: '12%', minWidth: '90px', maxWidth: '12%', paddingLeft: '8px', paddingRight: '8px', boxSizing: 'border-box' }
+                    : { width: colWidth, minWidth: 0, maxWidth: colWidth };
+                  return (
+                    <TableHeader 
+                      key={column} 
+                      style={style}
+                      data-column={column}
+                      className={isContributor ? 'case-table-contributor-column' : ''}
+                    >
+                      {getFieldLabel(column)}
+                    </TableHeader>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -218,9 +288,23 @@ const CaseTable = ({ cases, loading, selectedColumns, availableFields, onColumnC
                   onClick={() => onCaseClick(caseItem.Id)}
                   className="case-table-row"
                 >
-                  {selectedColumns.map(column => (
-                    <TableCell key={column}>{formatValue(getFieldValue(caseItem, column), column)}</TableCell>
-                  ))}
+                  {selectedColumns.map(column => {
+                    const colWidth = getColumnWidth(column);
+                    const isContributor = column === 'ContactId';
+                    const style = isContributor 
+                      ? { width: '4.5%', minWidth: '50px', maxWidth: '4.5%', paddingLeft: '8px', paddingRight: '8px', boxSizing: 'border-box' }
+                      : { width: colWidth, minWidth: 0, maxWidth: colWidth };
+                    return (
+                      <TableCell 
+                        key={column} 
+                        style={style}
+                        data-column={column}
+                        className={isContributor ? 'case-table-contributor-column' : ''}
+                      >
+                        {formatValue(getFieldValue(caseItem, column), column)}
+                      </TableCell>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
