@@ -195,28 +195,70 @@ router.get('/system-status', authenticate, async (req, res) => {
       const settingsPath = path.join(__dirname, '../data/salesforce-settings.json');
       if (fs.existsSync(settingsPath)) {
         const settings = loadData(settingsPath, {});
-        salesforceStatus = settings.url && settings.username ? 'connected' : 'not_configured';
+        // Check for salesforceUrl or loginUrl, and username (can be encrypted)
+        const hasUrl = !!(settings.salesforceUrl || settings.loginUrl);
+        const hasUsername = !!settings.username;
+        const hasPassword = !!settings.password;
+        const hasSecurityToken = !!settings.securityToken;
+        
+        if (hasUrl && hasUsername && hasPassword && hasSecurityToken) {
+          salesforceStatus = 'connected';
+        } else {
+          salesforceStatus = 'not_configured';
+        }
       } else {
         salesforceStatus = 'not_configured';
       }
       salesforceResponseTime = Date.now() - startTime;
     } catch (error) {
+      console.error('Error checking Salesforce status:', error);
       salesforceStatus = 'error';
     }
     
     // Check queue scheduler status
+    // Check if schedule rules exist (indicates scheduler is configured)
+    const scheduleRulesPath = path.join(__dirname, '../data/queue-status-schedule-rules.json');
     const queueStatusPath = path.join(__dirname, '../data/queue-status-execution-history.json');
     let queueSchedulerStatus = 'unknown';
     let lastQueueRun = null;
     
-    if (fs.existsSync(queueStatusPath)) {
+    // Check if scheduler is configured (has rules file OR execution history)
+    // Scheduler is considered configured if rules file exists (even if no rules are enabled)
+    // OR if execution history exists (meaning it has run before)
+    if (fs.existsSync(scheduleRulesPath)) {
+      const scheduleRules = loadData(scheduleRulesPath, []);
+      // Check if there are any enabled rules
+      const hasEnabledRules = scheduleRules.length > 0 && scheduleRules.some(rule => rule.enabled === true);
+      
+      if (hasEnabledRules) {
+        // Check execution history to see if it's running
+        if (fs.existsSync(queueStatusPath)) {
+          const queueHistory = loadData(queueStatusPath, []);
+          if (queueHistory.length > 0) {
+            const lastRun = queueHistory[queueHistory.length - 1];
+            lastQueueRun = lastRun.timestamp || lastRun.executedAt;
+            queueSchedulerStatus = 'running';
+          } else {
+            queueSchedulerStatus = 'configured'; // Configured but not run yet
+          }
+        } else {
+          queueSchedulerStatus = 'configured'; // Configured but not run yet
+        }
+      } else if (scheduleRules.length > 0) {
+        // Rules file exists with rules, but none are enabled
+        queueSchedulerStatus = 'configured'; // Still considered configured
+      } else {
+        queueSchedulerStatus = 'not_configured'; // Rules file exists but empty
+      }
+    } else if (fs.existsSync(queueStatusPath)) {
+      // Execution history exists but no rules file - scheduler was configured before
       const queueHistory = loadData(queueStatusPath, []);
       if (queueHistory.length > 0) {
         const lastRun = queueHistory[queueHistory.length - 1];
         lastQueueRun = lastRun.timestamp || lastRun.executedAt;
         queueSchedulerStatus = 'running';
       } else {
-        queueSchedulerStatus = 'not_run';
+        queueSchedulerStatus = 'configured';
       }
     } else {
       queueSchedulerStatus = 'not_configured';

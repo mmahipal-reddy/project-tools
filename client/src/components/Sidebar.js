@@ -32,7 +32,8 @@ import {
   Clock as ClockIcon,
   Copy,
   AlertCircle,
-  Users2
+  Users2,
+  CheckCircle
 } from 'lucide-react';
 import '../styles/Sidebar.css';
 
@@ -240,6 +241,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           label: 'Case Management',
           icon: AlertCircle,
           path: '/case-management',
+          permission: null
+        },
+        {
+          id: 'pm-approvals',
+          label: 'PM Approvals',
+          icon: CheckCircle,
+          path: '/pm-approvals',
           permission: null
         }
       ]
@@ -465,6 +473,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     }
     if (path === '/contributor-payments') {
       return location.pathname === '/contributor-payments';
+    }
+    if (path === '/pm-approvals') {
+      return location.pathname === '/pm-approvals';
     }
     return location.pathname.startsWith(path);
   };
