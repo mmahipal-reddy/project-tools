@@ -289,6 +289,10 @@ router.get('/cases', authenticate, authorize('view_project', 'all'), asyncHandle
       query += ` WHERE ${whereConditions.join(' AND ')}`;
     }
     
+    // Apply GPC filter
+    const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
+    query = applyGPCFilterToQuery(query, req, { accountField: 'AccountId', projectField: 'Project__c' });
+    
     // Add ORDER BY
     const orderByField = orderBy || 'CreatedDate';
     const orderDir = (orderDirection || 'DESC').toUpperCase();

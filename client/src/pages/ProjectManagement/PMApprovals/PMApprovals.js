@@ -17,6 +17,9 @@ import ActionButtons from './components/ActionButtons';
 import ApprovalModal from './components/ApprovalModal';
 import RejectModal from './components/RejectModal';
 import EmailModal from './components/EmailModal';
+import { useGPCFilter } from '../../../context/GPCFilterContext';
+import { applyGPCFilterToParams } from '../../../utils/gpcFilter';
+import GPCFilterToggle from '../../../components/GPCFilter/GPCFilterToggle';
 import './PMApprovals.css';
 import '../../../styles/Sidebar.css';
 import '../../../styles/GlobalHeader.css';
@@ -99,8 +102,74 @@ const sortRecords = (records, sortField, sortOrder) => {
   return sorted;
 };
 
+// GPC Filter helper function - applies consistent filtering logic
+// Logic: OR within accounts, OR within projects, AND between accounts and projects
+const applyGPCFilterToRecord = (record, preferences, shouldApplyFilter) => {
+  if (!shouldApplyFilter || !shouldApplyFilter()) {
+    return true; // No filter applied
+  }
+
+  if (!record) return false;
+
+  const interestedAccountNames = (preferences.interestedAccounts || [])
+    .map(acc => {
+      if (typeof acc === 'object' && acc !== null && acc.name) {
+        return acc.name;
+      }
+      return typeof acc === 'string' ? acc : '';
+    })
+    .filter(Boolean);
+  
+  const interestedProjectNames = (preferences.interestedProjects || [])
+    .map(proj => {
+      if (typeof proj === 'object' && proj !== null && proj.name) {
+        return proj.name;
+      }
+      return typeof proj === 'string' ? proj : '';
+    })
+    .filter(Boolean);
+
+  // If no preferences are set, show all records
+  if (interestedAccountNames.length === 0 && interestedProjectNames.length === 0) {
+    return true;
+  }
+
+  const recordAccountName = String(record.accountName || '').trim();
+  const recordProjectName = String(record.projectName || '').trim();
+
+  // OR logic within accounts: match if record matches any interested account
+  const accountMatch = interestedAccountNames.length === 0 || 
+    interestedAccountNames.some(accName => 
+      recordAccountName.toLowerCase() === accName.toLowerCase()
+    );
+
+  // OR logic within projects: match if record matches any interested project
+  const projectMatch = interestedProjectNames.length === 0 || 
+    interestedProjectNames.some(projName => 
+      recordProjectName.toLowerCase() === projName.toLowerCase()
+    );
+
+  // AND logic between accounts and projects:
+  // - If both accounts and projects are selected: must match account AND project
+  // - If only accounts selected: must match account
+  // - If only projects selected: must match project
+  if (interestedAccountNames.length > 0 && interestedProjectNames.length > 0) {
+    // Both selected: AND logic
+    return accountMatch && projectMatch;
+  } else if (interestedAccountNames.length > 0) {
+    // Only accounts selected: match account
+    return accountMatch;
+  } else if (interestedProjectNames.length > 0) {
+    // Only projects selected: match project
+    return projectMatch;
+  }
+
+  return true; // No preferences, show all
+};
+
 const PMApprovals = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams, shouldApplyFilter, preferences } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
@@ -267,6 +336,8 @@ const PMApprovals = () => {
         params.append('filterValue', activeFilter.value);
       }
       
+      // Note: GPC-Filter is applied client-side for PM Approvals
+      // because Payment_Transactions_Needing_Approval__c doesn't have direct Account__c field
       
       const response = await apiClient.get(`/pm-approvals/list?${params.toString()}`);
       
@@ -726,6 +797,9 @@ const PMApprovals = () => {
             </div>
           </div>
 
+          {/* GPC-Filter Toggle */}
+          <GPCFilterToggle />
+
           {/* Main Content */}
           <div className="pm-approvals-content">
             {/* Left Sidebar */}
@@ -743,19 +817,37 @@ const PMApprovals = () => {
                   <DeadlinesPanel deadlines={deadlines} loading={!deadlines} />
                   <RecordsCount 
                 count={(() => {
-                  // If client-side filtering is active, show filtered count (works for all fields now)
+                  // Apply consistent filtering (GPC + field filter) to get accurate count
+                  let filteredRecords = Array.isArray(records) ? records : [];
+                  
+                  // Apply GPC filter first
+                  filteredRecords = filteredRecords.filter(record => 
+                    applyGPCFilterToRecord(record, preferences, shouldApplyFilter)
+                  );
+                  
+                  // Then apply field-based filter if active
                   if (filter.field && filter.value) {
-                    const filteredCount = records.filter(record => {
+                    filteredRecords = filteredRecords.filter(record => {
                       if (!record) return false;
                       const fieldValue = String(record[filter.field] || '').trim();
                       const filterValue = String(filter.value || '').trim();
                       return fieldValue === filterValue;
-                    }).length;
-                    return filteredCount;
+                    });
                   }
-                  return uniqueRecordsCount > 0 ? uniqueRecordsCount : records.length;
+                  
+                  return filteredRecords.length;
                 })()}
-                total={uniqueRecordsCount > 0 ? uniqueRecordsCount : records.length}
+                total={(() => {
+                  // Total should also reflect filtered count for consistency
+                  let filteredRecords = Array.isArray(records) ? records : [];
+                  
+                  // Apply GPC filter
+                  filteredRecords = filteredRecords.filter(record => 
+                    applyGPCFilterToRecord(record, preferences, shouldApplyFilter)
+                  );
+                  
+                  return filteredRecords.length;
+                })()}
                 duplicates={duplicatesCount || 0}
                 loading={loading} 
                 isLoadingMore={loadingMore || hasMore}
@@ -785,42 +877,51 @@ const PMApprovals = () => {
               {/* Summary Metrics */}
               <div className="summary-metrics-section">
                 {(() => {
-                  // Calculate summary from filtered records if filter is applied
-                  let calculatedSummary = null;
+                  // Calculate summary from filtered records
+                  // Apply both field filter and GPC filter consistently
+                  let filteredRecords = Array.isArray(records) ? records : [];
+                  
+                  // Apply GPC filter first
+                  filteredRecords = filteredRecords.filter(record => 
+                    applyGPCFilterToRecord(record, preferences, shouldApplyFilter)
+                  );
+                  
+                  // Then apply field-based filter if active
                   if (filter.field && filter.value) {
-                    const filteredRecords = Array.isArray(records) ? records.filter(record => {
+                    filteredRecords = filteredRecords.filter(record => {
                       if (!record) return false;
                       const fieldValue = String(record[filter.field] || '').trim();
                       const filterValue = String(filter.value || '').trim();
                       return fieldValue === filterValue;
-                    }) : [];
-                    
-                    calculatedSummary = filteredRecords.reduce((acc, record) => {
-                      const selfReportedHours = parseFloat(record.selfReportedHours) || 0;
-                      const systemTrackedHours = parseFloat(record.systemTrackedHours) || 0;
-                      const selfReportedUnits = parseFloat(record.selfReportedUnits) || 0;
-                      const totalPayment = parseFloat(record.totalPayment) || 0;
-                      
-                      acc.totalPendingHours += selfReportedHours;
-                      acc.totalHours += systemTrackedHours;
-                      acc.selfReportedTime += selfReportedHours;
-                      acc.systemTracked += systemTrackedHours;
-                      acc.totalPayment += totalPayment;
-                      acc.totalPendingUnits += selfReportedUnits;
-                      
-                      return acc;
-                    }, {
-                      totalPendingHours: 0,
-                      totalHours: 0,
-                      selfReportedTime: 0,
-                      systemTracked: 0,
-                      totalPayment: 0,
-                      totalPendingUnits: 0
                     });
                   }
                   
-                  // Use calculated summary if filter is applied, otherwise use server summary
-                  const displaySummary = calculatedSummary || summary || {};
+                  // Calculate summary from filtered records
+                  const calculatedSummary = filteredRecords.reduce((acc, record) => {
+                    const selfReportedHours = parseFloat(record.selfReportedHours) || 0;
+                    const systemTrackedHours = parseFloat(record.systemTrackedHours) || 0;
+                    const selfReportedUnits = parseFloat(record.selfReportedUnits) || 0;
+                    const totalPayment = parseFloat(record.totalPayment) || 0;
+                    
+                    acc.totalPendingHours += selfReportedHours;
+                    acc.totalHours += systemTrackedHours;
+                    acc.selfReportedTime += selfReportedHours;
+                    acc.systemTracked += systemTrackedHours;
+                    acc.totalPayment += totalPayment;
+                    acc.totalPendingUnits += selfReportedUnits;
+                    
+                    return acc;
+                  }, {
+                    totalPendingHours: 0,
+                    totalHours: 0,
+                    selfReportedTime: 0,
+                    systemTracked: 0,
+                    totalPayment: 0,
+                    totalPendingUnits: 0
+                  });
+                  
+                  // Always use calculated summary from filtered records for consistency
+                  const displaySummary = calculatedSummary;
                   
                   return (
                     <>
@@ -848,7 +949,13 @@ const PMApprovals = () => {
                     // Apply client-side filtering and sorting for all fields
                     let processedRecords = Array.isArray(records) ? records : [];
                     
-                    // Apply filtering for all fields
+                    // Apply GPC-Filter (client-side for PM Approvals)
+                    // Uses consistent filter logic: OR within accounts/projects, AND between them
+                    processedRecords = processedRecords.filter(record => 
+                      applyGPCFilterToRecord(record, preferences, shouldApplyFilter)
+                    );
+                    
+                    // Apply field-based filtering
                     if (filter.field && filter.value) {
                       processedRecords = processedRecords.filter(record => {
                         if (!record) return false;

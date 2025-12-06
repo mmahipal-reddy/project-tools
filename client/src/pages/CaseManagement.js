@@ -95,6 +95,8 @@ const CaseManagement = () => {
         }
       }
       
+      // Apply GPC-Filter
+      
       console.log('Fetching cases with params:', params.toString());
       const response = await apiClient.get(`/case-management/cases?${params.toString()}`);
       if (response.data.success) {

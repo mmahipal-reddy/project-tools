@@ -232,6 +232,14 @@ router.get('/summary', authenticate, authorize('view_project', 'all'), asyncHand
         ${statusCondition}
         ${projectStatusCondition}
       `;
+      
+      // Apply GPC filter (filter by Project through Project_Objective relationship)
+      const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
+      query = applyGPCFilterToQuery(query, req, { 
+        accountField: 'Project_Objective__r.Project__r.Account__c',
+        projectField: 'Project_Objective__r.Project__c'
+      });
+      
       console.log('Executing optimized WorkStream summary query with relationship and status filters');
       console.log('Status filter:', statusFilter);
       console.log('Project status filter:', projectStatusFilter || 'none');

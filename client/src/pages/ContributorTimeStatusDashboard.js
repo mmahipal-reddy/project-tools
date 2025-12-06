@@ -5,6 +5,9 @@ import useSidebarWidth from '../hooks/useSidebarWidth';
 import { Menu, LogOut, RefreshCw, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '../config/api';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import BookmarkButton from '../components/BookmarkButton';
 import OverviewCards from './ContributorTimeStatus/components/OverviewCards';
 import TimeInStatusChart from './ContributorTimeStatus/components/TimeInStatusChart';
@@ -18,6 +21,7 @@ import '../styles/GlobalHeader.css';
 
 const ContributorTimeStatusDashboard = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -53,10 +57,9 @@ const ContributorTimeStatusDashboard = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/contributor-time-status/overview', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/contributor-time-status/overview', config);
       if (response.data.success) {
         setOverviewData(response.data.data);
         setErrors(prev => ({ ...prev, overview: null }));
@@ -79,10 +82,9 @@ const ContributorTimeStatusDashboard = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/contributor-time-status/timeline', {
-        params: { ...params, limit: 100, offset: 0 },
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params: { ...params, limit: 100, offset: 0 }, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/contributor-time-status/timeline', config);
       if (response.data.success) {
         setTimelineData(response.data);
         setErrors(prev => ({ ...prev, timeline: null }));
@@ -105,10 +107,9 @@ const ContributorTimeStatusDashboard = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/contributor-time-status/bottlenecks', {
-        params: { ...params, minDays: 0 },
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params: { ...params, minDays: 0 }, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/contributor-time-status/bottlenecks', config);
       if (response.data.success) {
         setBottleneckData(response.data.data);
         setErrors(prev => ({ ...prev, bottlenecks: null }));
@@ -131,10 +132,9 @@ const ContributorTimeStatusDashboard = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/contributor-time-status/transitions', {
-        params: { ...params },
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params: { ...params }, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/contributor-time-status/transitions', config);
       if (response.data.success) {
         setTransitionData(response.data.data);
         setErrors(prev => ({ ...prev, transitions: null }));
@@ -224,6 +224,9 @@ const ContributorTimeStatusDashboard = () => {
               </div>
             </div>
           </div>
+
+          {/* GPC-Filter Toggle */}
+          <GPCFilterToggle />
           
           {/* Loading State */}
           {loading && (

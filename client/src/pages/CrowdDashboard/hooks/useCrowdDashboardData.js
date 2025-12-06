@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import apiClient from '../../../config/api';
 import toast from 'react-hot-toast';
+import { applyGPCFilterToConfig } from '../../../utils/gpcFilter';
 
 /**
  * Custom hook for managing CrowdDashboard data fetching
@@ -18,15 +19,15 @@ export const useCrowdDashboardData = (
   setByContributorSource,
   setByContributorStatus,
   setByContributorType,
-  setWidgetStates
+  setWidgetStates,
+  gpcFilterParams
 ) => {
   // Fetch base metrics (fast)
   const fetchBaseMetrics = useCallback(async (silent = false, widgetKey = 'baseMetrics') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/metrics', {
-        timeout: 60000
-      });
+      const config = applyGPCFilterToConfig({ timeout: 60000 }, gpcFilterParams);
+      const response = await apiClient.get('/crowd-dashboard/metrics', config);
       const { activeContributors, onboardingContributors, avgAppReceivedToApplied, avgAppReceivedToActive, ...baseMetrics } = response.data;
       setMetrics(prev => ({
         ...prev,
@@ -47,15 +48,14 @@ export const useCrowdDashboardData = (
         toast.error('Error loading base metrics');
       }
     }
-  }, [setMetrics, setWidgetStates]);
+  }, [setMetrics, setWidgetStates, gpcFilterParams]);
 
   // Fetch active contributors
   const fetchActiveContributors = useCallback(async (silent = false, widgetKey = 'activeContributors') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/active-contributors', {
-        timeout: 600000
-      });
+      const config = applyGPCFilterToConfig({ timeout: 600000 }, gpcFilterParams);
+      const response = await apiClient.get('/crowd-dashboard/active-contributors', config);
       setMetrics(prev => ({
         ...prev,
         activeContributors: response.data.activeContributors || 0,
@@ -72,15 +72,14 @@ export const useCrowdDashboardData = (
         toast.error('Error loading active contributors');
       }
     }
-  }, [setMetrics, setWidgetStates]);
+  }, [setMetrics, setWidgetStates, gpcFilterParams]);
 
   // Fetch onboarding contributors
   const fetchOnboardingContributors = useCallback(async (silent = false, widgetKey = 'onboardingContributors') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/onboarding-contributors', {
-        timeout: 600000
-      });
+      const config = applyGPCFilterToConfig({ timeout: 600000 }, gpcFilterParams);
+      const response = await apiClient.get('/crowd-dashboard/onboarding-contributors', config);
       setMetrics(prev => ({
         ...prev,
         onboardingContributors: response.data.onboardingContributors || 0,
@@ -96,14 +95,14 @@ export const useCrowdDashboardData = (
         toast.error('Error loading onboarding contributors');
       }
     }
-  }, [setMetrics, setWidgetStates]);
+  }, [setMetrics, setWidgetStates, gpcFilterParams]);
 
   const fetchKYCStatus = useCallback(async (silent = false, widgetKey = 'kycStatus') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/kyc-status', {
-        timeout: 120000
-      });
+      // KYC Status is demographic data, not project-specific - don't apply GPC filter
+      const config = { timeout: 120000 };
+      const response = await apiClient.get('/crowd-dashboard/kyc-status', config);
       setKycStatus(response.data.kycStatus || []);
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
     } catch (error) {
@@ -114,9 +113,9 @@ export const useCrowdDashboardData = (
   const fetchByCountry = useCallback(async (silent = false, widgetKey = 'byCountry') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-country', {
-        timeout: 60000
-      });
+      // Country is demographic data, not project-specific - don't apply GPC filter
+      const config = { timeout: 60000 };
+      const response = await apiClient.get('/crowd-dashboard/by-country', config);
       setByCountry(response.data.byCountry || []);
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
     } catch (error) {
@@ -127,9 +126,9 @@ export const useCrowdDashboardData = (
   const fetchByLanguage = useCallback(async (silent = false, widgetKey = 'byLanguage') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-language', {
-        timeout: 60000
-      });
+      // Language is demographic data, not project-specific - don't apply GPC filter
+      const config = { timeout: 60000 };
+      const response = await apiClient.get('/crowd-dashboard/by-language', config);
       setByLanguage(response.data.byLanguage || []);
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
     } catch (error) {
@@ -140,11 +139,13 @@ export const useCrowdDashboardData = (
   const fetchByProject = useCallback(async (silent = false, widgetKey = 'byProject') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-project', {
+      const baseConfig = {
         timeout: 300000,
         params: { _t: Date.now() }, // Cache busting
         headers: { 'Cache-Control': 'no-cache' }
-      });
+      };
+      const config = applyGPCFilterToConfig(baseConfig, gpcFilterParams);
+      const response = await apiClient.get('/crowd-dashboard/by-project', config);
       setByProject(response.data.byProject || []);
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent && response.data.byProject && response.data.byProject.length === 0) {
@@ -159,16 +160,19 @@ export const useCrowdDashboardData = (
       }
       console.error('[Crowd Dashboard] Error fetching by project:', error);
     }
-  }, [setByProject, setWidgetStates]);
+  }, [setByProject, setWidgetStates, gpcFilterParams]);
 
   const fetchByCountryLanguage = useCallback(async (silent = false, widgetKey = 'byCountryLanguage') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-country-language', {
+      // Country/Language is demographic data, not project-specific - don't apply GPC filter
+      const baseConfig = {
         timeout: 300000,
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
-      });
+      };
+      const config = baseConfig;
+      const response = await apiClient.get('/crowd-dashboard/by-country-language', config);
       
       const countryLangData = response.data?.byCountryLanguage || [];
       setByCountryLanguage(countryLangData);
@@ -203,11 +207,14 @@ export const useCrowdDashboardData = (
   const fetchBySource = useCallback(async (silent = false, widgetKey = 'bySource') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-source', {
+      // Source is demographic data, not project-specific - don't apply GPC filter
+      const baseConfig = {
         timeout: 600000,
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
-      });
+      };
+      const config = baseConfig;
+      const response = await apiClient.get('/crowd-dashboard/by-source', config);
       
       // Handle response data - check for bySource array or error/warning
       const sourceData = response.data?.bySource || [];
@@ -252,9 +259,8 @@ export const useCrowdDashboardData = (
   const fetchAvgAppReceivedToApplied = useCallback(async (silent = false, widgetKey = 'avgAppReceivedToApplied') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/avg-app-received-to-applied', {
-        timeout: 120000
-      });
+      const config = applyGPCFilterToConfig({ timeout: 120000 }, gpcFilterParams);
+      const response = await apiClient.get('/crowd-dashboard/avg-app-received-to-applied', config);
       setMetrics(prev => ({
         ...prev,
         avgAppReceivedToApplied: response.data.avgAppReceivedToApplied || 0,
@@ -270,14 +276,13 @@ export const useCrowdDashboardData = (
         toast.error('Error loading avg app received to applied');
       }
     }
-  }, [setMetrics, setWidgetStates]);
+  }, [setMetrics, setWidgetStates, gpcFilterParams]);
 
   const fetchAvgAppReceivedToActive = useCallback(async (silent = false, widgetKey = 'avgAppReceivedToActive') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/avg-app-received-to-active', {
-        timeout: 120000
-      });
+      const config = applyGPCFilterToConfig({ timeout: 120000 }, gpcFilterParams);
+      const response = await apiClient.get('/crowd-dashboard/avg-app-received-to-active', config);
       setMetrics(prev => ({
         ...prev,
         avgAppReceivedToActive: response.data.avgAppReceivedToActive || 0,
@@ -293,16 +298,19 @@ export const useCrowdDashboardData = (
         toast.error('Error loading avg app received to active');
       }
     }
-  }, [setMetrics, setWidgetStates]);
+  }, [setMetrics, setWidgetStates, gpcFilterParams]);
 
   const fetchByContributorSource = useCallback(async (silent = false, widgetKey = 'byContributorSource') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-contributor-source', {
+      // Contributor Source is demographic data, not project-specific - don't apply GPC filter
+      const baseConfig = {
         timeout: 600000,
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
-      });
+      };
+      const config = baseConfig;
+      const response = await apiClient.get('/crowd-dashboard/by-contributor-source', config);
       if (response.data.byContributorSource && Array.isArray(response.data.byContributorSource)) {
         setByContributorSource(response.data.byContributorSource);
         setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
@@ -328,11 +336,14 @@ export const useCrowdDashboardData = (
   const fetchByContributorStatus = useCallback(async (silent = false, widgetKey = 'byContributorStatus') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-contributor-status', {
+      // Contributor Status is demographic data, not project-specific - don't apply GPC filter
+      const baseConfig = {
         timeout: 600000,
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
-      });
+      };
+      const config = baseConfig;
+      const response = await apiClient.get('/crowd-dashboard/by-contributor-status', config);
       if (response.data.byContributorStatus && Array.isArray(response.data.byContributorStatus)) {
         setByContributorStatus(response.data.byContributorStatus);
         setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
@@ -358,11 +369,14 @@ export const useCrowdDashboardData = (
   const fetchByContributorType = useCallback(async (silent = false, widgetKey = 'byContributorType') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/crowd-dashboard/by-contributor-type', {
+      // Contributor Type is demographic data, not project-specific - don't apply GPC filter
+      const baseConfig = {
         timeout: 600000,
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
-      });
+      };
+      const config = baseConfig;
+      const response = await apiClient.get('/crowd-dashboard/by-contributor-type', config);
       if (response.data.byContributorType && Array.isArray(response.data.byContributorType)) {
         setByContributorType(response.data.byContributorType);
         setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));

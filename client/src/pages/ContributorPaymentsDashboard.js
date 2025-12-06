@@ -8,6 +8,9 @@ import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import BookmarkButton from '../components/BookmarkButton';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import '../styles/Sidebar.css';
 import '../styles/GlobalHeader.css';
 import '../styles/ContributorPaymentsDashboard.css';
@@ -32,6 +35,7 @@ const STATUS_COLORS = [
 
 const ContributorPaymentsDashboard = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,7 +105,9 @@ const ContributorPaymentsDashboard = () => {
   const fetchTotalContributors = useCallback(async (silent = false, widgetKey = 'totalContributors') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/total-contributors');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/total-contributors', config);
       setTotalContributors({ value: response.data.totalContributors || 0, lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) toast.success('Total contributors updated');
@@ -111,12 +117,14 @@ const ContributorPaymentsDashboard = () => {
       setTotalContributors({ value: 0, lastRefreshed: null });
       if (!silent) toast.error(`Error loading total contributors: ${errorMsg}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchTotalPayments = useCallback(async (silent = false, widgetKey = 'totalPayments') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/total-payments');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/total-payments', config);
       if (response.data.warning) {
         if (!silent) toast.warning(response.data.warning);
       }
@@ -129,12 +137,14 @@ const ContributorPaymentsDashboard = () => {
       setTotalPayments({ value: 0, lastRefreshed: null });
       if (!silent) toast.error(`Error loading total payments: ${errorMsg}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchAveragePayment = useCallback(async (silent = false, widgetKey = 'averagePayment') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/average-payment');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/average-payment', config);
       setAveragePayment({ value: response.data.avgPaymentAmount, lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) toast.success('Average payment updated');
@@ -142,12 +152,14 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error('Error loading average payment');
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchPendingCount = useCallback(async (silent = false, widgetKey = 'pendingCount') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/pending-count');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/pending-count', config);
       setPendingCount({ value: response.data.pendingAmount, lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) toast.success('Pending amount updated');
@@ -155,12 +167,14 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error('Error loading pending amount');
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchPaymentsByStatus = useCallback(async (silent = false, widgetKey = 'paymentsByStatus') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/payments-by-status');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/payments-by-status', config);
       setPaymentsByStatus({ data: response.data.data || [], lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) {
@@ -174,12 +188,14 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error(`Error loading payments by status: ${error.message}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchPaymentsByMethod = useCallback(async (silent = false, widgetKey = 'paymentsByMethod') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/payments-by-method');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/payments-by-method', config);
       setPaymentsByMethod({ data: response.data.data || [], lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) {
@@ -193,12 +209,14 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error(`Error loading payments by method: ${error.message}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchPaymentsOverTime = useCallback(async (silent = false, widgetKey = 'paymentsOverTime') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/payments-over-time');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/payments-over-time', config);
       setPaymentsOverTime({ data: response.data.data || [], lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) {
@@ -212,12 +230,14 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error(`Error loading payments over time: ${error.message}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchTopContributors = useCallback(async (silent = false, widgetKey = 'topContributors') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/top-contributors', { params: { limit: 10 } });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params: { limit: 10 } }, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/top-contributors', config);
       setTopContributors({ data: response.data.data || [], lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) toast.success('Top contributors updated');
@@ -225,12 +245,14 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error('Error loading top contributors');
     }
-  }, []);
+  }, [getFilterParams]);
 
   const fetchPaymentsByCountry = useCallback(async (silent = false, widgetKey = 'paymentsByCountry') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/payments-by-country');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/payments-by-country', config);
       setPaymentsByCountry({ data: response.data.data || [], lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) {
@@ -244,13 +266,15 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error(`Error loading payments by country: ${error.message}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
 
   const fetchAveragePaymentByCountry = useCallback(async (silent = false, widgetKey = 'averagePaymentByCountry') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const response = await apiClient.get('/contributor-payments/average-payment-by-country');
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({}, gpcFilterParams);
+      const response = await apiClient.get('/contributor-payments/average-payment-by-country', config);
       setAveragePaymentByCountry({ data: response.data.data || [], lastRefreshed: response.data.lastRefreshed });
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: null } }));
       if (!silent) {
@@ -264,7 +288,7 @@ const ContributorPaymentsDashboard = () => {
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) toast.error(`Error loading average payment by country: ${error.message}`);
     }
-  }, []);
+  }, [getFilterParams]);
 
   // Widget-level refresh handlers
   const handleWidgetRefresh = (widgetKey) => {
@@ -573,6 +597,9 @@ const ContributorPaymentsDashboard = () => {
               </div>
             </div>
           </div>
+
+          {/* GPC-Filter Toggle */}
+          <GPCFilterToggle />
 
           <div className="contributor-payments-content">
             {/* KPI Cards - Grid Layout */}

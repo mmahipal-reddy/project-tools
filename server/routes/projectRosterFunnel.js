@@ -50,7 +50,12 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     // SOQL doesn't support OFFSET, so we fetch from the beginning and slice
     // For efficiency, only fetch what we need: OFFSET + LIMIT
     const fetchLimit = OFFSET + LIMIT;
-    const projectObjectiveQuery = `SELECT Id, Name FROM Project_Objective__c ORDER BY Name LIMIT ${fetchLimit}`;
+    let projectObjectiveQuery = `SELECT Id, Name FROM Project_Objective__c ORDER BY Name LIMIT ${fetchLimit}`;
+    
+    // Apply GPC-Filter
+    const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
+    projectObjectiveQuery = applyGPCFilterToQuery(projectObjectiveQuery, req, { accountField: 'Project__r.Account__c', projectField: 'Project__c' });
+    
     let projectObjectiveResult = await conn.query(projectObjectiveQuery);
     let allProjectObjectives = projectObjectiveResult.records || [];
     

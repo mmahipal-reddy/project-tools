@@ -6,6 +6,9 @@ import BookmarkButton from '../../components/BookmarkButton';
 import { Menu, LogOut, RefreshCw, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '../../config/api';
+import { useGPCFilter } from '../../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../../utils/gpcFilter';
+import GPCFilterToggle from '../../components/GPCFilter/GPCFilterToggle';
 import OverviewCards from './components/OverviewCards';
 import FunnelChart from './components/FunnelChart';
 import FinancialChart from './components/FinancialChart';
@@ -18,6 +21,7 @@ import '../../styles/GlobalHeader.css';
 
 const ProjectPerformance = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -59,10 +63,9 @@ const ProjectPerformance = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/project-performance/overview', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/project-performance/overview', config);
       if (response.data.success) {
         setOverviewData(response.data.data);
         setErrors(prev => ({ ...prev, overview: null }));
@@ -85,10 +88,9 @@ const ProjectPerformance = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/project-performance/funnel', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/project-performance/funnel', config);
       if (response.data.success) {
         setFunnelData(response.data.data);
         setErrors(prev => ({ ...prev, funnel: null }));
@@ -111,10 +113,9 @@ const ProjectPerformance = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/project-performance/financial', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/project-performance/financial', config);
       if (response.data.success) {
         setFinancialData(response.data.data);
         setErrors(prev => ({ ...prev, financial: null }));
@@ -137,10 +138,9 @@ const ProjectPerformance = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/project-performance/objectives', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/project-performance/objectives', config);
       if (response.data.success) {
         setObjectivesData(response.data.data);
         setErrors(prev => ({ ...prev, objectives: null }));
@@ -163,10 +163,9 @@ const ProjectPerformance = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/project-performance/team', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/project-performance/team', config);
       if (response.data.success) {
         setTeamData(response.data.data);
         setErrors(prev => ({ ...prev, team: null }));
@@ -189,10 +188,9 @@ const ProjectPerformance = () => {
     }
     try {
       const params = selectedAccount !== 'all' ? { account: selectedAccount } : {};
-      const response = await apiClient.get('/project-performance/queue', {
-        params,
-        timeout: 300000
-      });
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({ params, timeout: 300000 }, gpcFilterParams);
+      const response = await apiClient.get('/project-performance/queue', config);
       if (response.data.success) {
         setQueueData(response.data.data);
         setErrors(prev => ({ ...prev, queue: null }));
@@ -301,6 +299,9 @@ const ProjectPerformance = () => {
               </div>
             </div>
           </div>
+
+          {/* GPC-Filter Toggle */}
+          <GPCFilterToggle />
           
           <div className="project-performance-content">
             {/* Filters and Tabs */}
