@@ -6,6 +6,9 @@ import { Menu, LogOut, Search, X, Info, Plus, ChevronDown, ChevronUp, Trash2, Lo
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToParams } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import '../styles/CreateWorkStream.css';
 import '../styles/Sidebar.css';
 import '../styles/GlobalHeader.css';
@@ -71,8 +74,15 @@ const CreateWorkStream = ({ hideHeader = false }) => {
         setLoadingMorePOs(true);
       }
       
-      const response = await apiClient.get('/workstream/project-objectives-without-workstreams', {
-        params: { limit: 1000, offset },
+      const params = new URLSearchParams();
+      params.append('limit', '1000');
+      params.append('offset', offset.toString());
+      
+      // Apply GPC-Filter
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
+      
+      const response = await apiClient.get(`/workstream/project-objectives-without-workstreams?${params.toString()}`, {
         timeout: 120000 // 2 minutes to match backend timeout
       });
       
@@ -1104,6 +1114,7 @@ const CreateWorkStream = ({ hideHeader = false }) => {
             <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#002329' }}>
               Project Objectives Without Workstreams
             </h2>
+            <GPCFilterToggle />
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
@@ -1633,6 +1644,9 @@ const CreateWorkStream = ({ hideHeader = false }) => {
                   <h1 className="page-title">New Project Workstream</h1>
                   <p className="page-subtitle">Create a new project workstream</p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <div className="user-profile">

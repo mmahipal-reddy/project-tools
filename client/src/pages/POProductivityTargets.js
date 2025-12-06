@@ -5,6 +5,9 @@ import { Menu, LogOut, RefreshCw, Loader, Filter } from 'lucide-react';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import BookmarkButton from '../components/BookmarkButton';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToParams } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import POProductivityTargetsTable from '../components/POProductivityTargets/POProductivityTargetsTable';
 import POProductivityTargetsFilterBuilder from '../components/POProductivityTargets/POProductivityTargetsFilterBuilder';
 import TruncatedSpan from '../components/TruncatedSpan';
@@ -14,6 +17,7 @@ import '../styles/GlobalHeader.css';
 
 const POProductivityTargets = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState([]);
@@ -126,6 +130,10 @@ const POProductivityTargets = () => {
       if (filters && Array.isArray(filters) && filters.length > 0) {
         params.append('filters', JSON.stringify(filters));
       }
+      
+      // Apply GPC-Filter
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
       
       const response = await apiClient.get(`/po-productivity-targets?${params.toString()}`);
       if (response.data.success) {
@@ -284,6 +292,9 @@ const POProductivityTargets = () => {
                   </h1>
                   <p className="page-subtitle">View productivity targets for Project Objectives</p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="PO Productivity Targets" pageType="page" />

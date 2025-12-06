@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../../middleware/auth');
 const { getSalesforceConnection, logMetrics, asyncHandler } = require('./utils');
+const { applyGPCFilterToQuery } = require('../../utils/gpcFilterQueryBuilder');
 
 /**
  * Get main crowd metrics
@@ -24,11 +25,14 @@ router.get('/metrics', authenticate, authorize('view_project', 'all'), asyncHand
 
     // Get data from Project__c
     try {
-      const projectQuery = `SELECT Total_Applied__c, Total_Qualified__c
+      let projectQuery = `SELECT Total_Applied__c, Total_Qualified__c
                             FROM Project__c
                             WHERE (Total_Applied__c != null AND Total_Applied__c > 0) 
                                OR (Total_Qualified__c != null AND Total_Qualified__c > 0)
                             LIMIT 5000`;
+      
+      // Apply GPC filter (filter by Project__c.Id)
+      projectQuery = applyGPCFilterToQuery(projectQuery, req, { projectField: 'Id' });
       
       let projectResult = await conn.query(projectQuery);
       let totalApplied = 0;
@@ -61,10 +65,14 @@ router.get('/metrics', authenticate, authorize('view_project', 'all'), asyncHand
     try {
       logMetrics('=== FETCHING PRODUCTIVE CONTRIBUTORS ===');
       
-      const productiveQuery = `SELECT Status__c, COUNT(Id) cnt
+      let productiveQuery = `SELECT Status__c, COUNT(Id) cnt
                                FROM Contributor_Project__c
                                WHERE Status__c = 'Production'
                                GROUP BY Status__c`;
+      
+      // Apply GPC filter
+      productiveQuery = applyGPCFilterToQuery(productiveQuery, req);
+      
       let productiveResult = await conn.query(productiveQuery);
       
       if (productiveResult.records && productiveResult.records.length > 0) {

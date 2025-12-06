@@ -50,7 +50,12 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     // Query Projects with pagination
     // SOQL doesn't support OFFSET, so we fetch from the beginning and slice
     const fetchLimit = OFFSET + LIMIT;
-    const projectQuery = `SELECT Id, Name FROM Project__c ORDER BY Name LIMIT ${fetchLimit}`;
+    let projectQuery = `SELECT Id, Name FROM Project__c ORDER BY Name LIMIT ${fetchLimit}`;
+    
+    // Apply GPC-Filter
+    const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
+    projectQuery = applyGPCFilterToQuery(projectQuery, req, { accountField: 'Account__c', projectField: 'Id' });
+    
     let projectResult = await conn.query(projectQuery);
     let allProjects = projectResult.records || [];
     

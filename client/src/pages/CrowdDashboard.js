@@ -32,9 +32,13 @@ import {
   renderFilterUI 
 } from './CrowdDashboard/components/WidgetHelpers';
 import { BASELINE_STORAGE_KEY, THRESHOLDS_STORAGE_KEY, HISTORICAL_DATA_KEY } from './CrowdDashboard/constants';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 
 const CrowdDashboard = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
+  const gpcFilterParams = getFilterParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(false); // Don't block UI - show widgets immediately
@@ -180,7 +184,8 @@ const CrowdDashboard = () => {
     setByContributorSource,
     setByContributorStatus,
     setByContributorType,
-    setWidgetStates
+    setWidgetStates,
+    gpcFilterParams
   );
 
   // All fetch functions are now provided by useCrowdDashboardData hook
@@ -498,6 +503,9 @@ const CrowdDashboard = () => {
                 Demographics
               </button>
             </div>
+
+            {/* GPC-Filter Toggle */}
+            <GPCFilterToggle />
 
             {/* Action Buttons */}
             <div className="dashboard-actions">

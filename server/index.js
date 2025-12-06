@@ -45,6 +45,7 @@ const poPayRatesRoutes = require('./routes/poPayRates');
 const poProductivityTargetsRoutes = require('./routes/poProductivityTargets');
 const welcomeRoutes = require('./routes/welcome');
 const pmApprovalsRoutes = require('./routes/pmApprovals');
+const userPreferencesRoutes = require('./routes/userPreferences');
 
 // Queue Status Scheduler Service
 const { startScheduler } = require('./services/queueStatusScheduler');
@@ -317,6 +318,7 @@ app.use('/api/po-pay-rates', validateCsrf, poPayRatesRoutes);
 app.use('/api/po-productivity-targets', validateCsrf, poProductivityTargetsRoutes);
 app.use('/api/welcome', welcomeRoutes); // No CSRF for GET requests
 app.use('/api/pm-approvals', validateCsrf, pmApprovalsRoutes);
+app.use('/api/user', userPreferencesRoutes); // User preferences (GPC-Filter) - GET doesn't need CSRF, POST does
 
 // Routes registered
 

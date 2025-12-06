@@ -5,6 +5,9 @@ import useSidebarWidth from '../hooks/useSidebarWidth';
 import { Menu, LogOut } from 'lucide-react';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import ActiveContributorsByProjectTable from '../components/ActiveContributorsByProject/ActiveContributorsByProjectTable';
 import '../styles/ActiveContributorsByProject.css';
 import '../styles/Sidebar.css';
@@ -12,6 +15,7 @@ import '../styles/GlobalHeader.css';
 
 const ActiveContributorsByProject = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -41,13 +45,15 @@ const ActiveContributorsByProject = () => {
     }
     
     try {
-      const response = await apiClient.get('/active-contributors-by-project', {
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({
         timeout: 300000, // 5 minutes
         params: {
           limit: LIMIT,
           offset: currentOffset
         }
-      });
+      }, gpcFilterParams);
+      const response = await apiClient.get('/active-contributors-by-project', config);
       if (response.data.success) {
         const newData = response.data.data || [];
         if (append) {
@@ -148,6 +154,9 @@ const ActiveContributorsByProject = () => {
                   <h1 className="page-title">Active Contributors by Project</h1>
                   <p className="page-subtitle">View active contributors for each Project Objective</p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <div className="user-profile">

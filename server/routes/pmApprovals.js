@@ -778,6 +778,9 @@ router.get('/list', authenticate, authorize('view_project', 'all'), asyncHandler
       soql += ` WHERE ${whereClause}`;
     }
 
+    // Note: GPC filter is applied client-side for PM Approvals
+    // because Payment_Transactions_Needing_Approval__c doesn't have direct Account__c field
+
     // Add sorting
     const validSortBy = sortBy || fields.transactionDate;
     const validSortOrder = sortOrder === 'ASC' ? 'ASC' : 'DESC';

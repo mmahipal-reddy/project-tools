@@ -7,6 +7,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import BookmarkButton from '../components/BookmarkButton';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import '../styles/CaseAnalyticsDashboard.css';
 import '../styles/Sidebar.css';
 import '../styles/GlobalHeader.css';
@@ -41,6 +44,7 @@ const saveBaselineData = (dashboardState) => {
 
 const CaseAnalyticsDashboard = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(false);
@@ -246,11 +250,12 @@ const CaseAnalyticsDashboard = () => {
 
       // Fetch charts based on active tab
       if (activeTab === 'daily-snapshot') {
+        const gpcFilterParams = getFilterParams();
         const [newCases, resolvedCases, statusBreakdown, slaBreakdown] = await Promise.all([
-          apiClient.get('/case-analytics/daily-new-cases', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/daily-resolved-cases', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/case-status-breakdown', { params: activeFilters }),
-          apiClient.get('/case-analytics/unresolved-sla-breakdown', { params: activeFilters })
+          apiClient.get('/case-analytics/daily-new-cases', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/daily-resolved-cases', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/case-status-breakdown', applyGPCFilterToConfig({ params: activeFilters }, gpcFilterParams)),
+          apiClient.get('/case-analytics/unresolved-sla-breakdown', applyGPCFilterToConfig({ params: activeFilters }, gpcFilterParams))
         ]);
         setDailyNewCases(newCases.data);
         setDailyResolvedCases(resolvedCases.data);
@@ -263,15 +268,15 @@ const CaseAnalyticsDashboard = () => {
         baselineData.unresolvedSLABreakdown = slaBreakdown.data;
 
         const [byGroup, avgByGroup, medianByGroup, byReason, avgByReason, medianByReason, byType, avgByType, medianByType] = await Promise.all([
-          apiClient.get('/case-analytics/created-resolved-by-group', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/avg-created-resolved-by-group', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/median-time-by-group', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/created-resolved-by-reason', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/avg-created-resolved-by-reason', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/median-time-by-reason', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/created-resolved-by-type', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/avg-created-resolved-by-type', { params: { ...activeFilters, timeRange: activeTimeRange } }),
-          apiClient.get('/case-analytics/median-time-by-type', { params: { ...activeFilters, timeRange: activeTimeRange } })
+          apiClient.get('/case-analytics/created-resolved-by-group', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/avg-created-resolved-by-group', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/median-time-by-group', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/created-resolved-by-reason', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/avg-created-resolved-by-reason', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/median-time-by-reason', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/created-resolved-by-type', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/avg-created-resolved-by-type', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams)),
+          apiClient.get('/case-analytics/median-time-by-type', applyGPCFilterToConfig({ params: { ...activeFilters, timeRange: activeTimeRange } }, gpcFilterParams))
         ]);
         setCreatedResolvedByGroup(byGroup.data);
         setAvgCreatedResolvedByGroup(avgByGroup.data);
@@ -825,6 +830,9 @@ const CaseAnalyticsDashboard = () => {
               </div>
             </div>
           </div>
+
+          {/* GPC-Filter Toggle */}
+          <GPCFilterToggle />
 
           <div className="case-analytics-content">
             {/* Tabs */}

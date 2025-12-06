@@ -6,6 +6,9 @@ import { Menu, LogOut } from 'lucide-react';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import BookmarkButton from '../components/BookmarkButton';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import ActiveContributorsByQualStepTable from '../components/ActiveContributorsByQualStep/ActiveContributorsByQualStepTable';
 import '../styles/ActiveContributorsByQualStep.css';
 import '../styles/Sidebar.css';
@@ -13,6 +16,7 @@ import '../styles/GlobalHeader.css';
 
 const ActiveContributorsByQualStep = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -88,10 +92,14 @@ const ActiveContributorsByQualStep = () => {
         params.search = search.trim();
       }
       
-      const response = await apiClient.get('/active-contributors-by-qual-step', {
+      // Apply GPC-Filter
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({
         timeout: 300000, // 5 minutes
-        params: params
-      });
+        params
+      }, gpcFilterParams);
+      
+      const response = await apiClient.get('/active-contributors-by-qual-step', config);
       if (response.data.success) {
         const newData = response.data.data || [];
         console.log('[Active Contributors by Qual Step] Received data:', {
@@ -202,6 +210,9 @@ const ActiveContributorsByQualStep = () => {
                   <h1 className="page-title">Active Contributors by Qualification Step</h1>
                   <p className="page-subtitle">View active contributors for each Qualification Step</p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Active Contributors by Qualification Step" pageType="page" />

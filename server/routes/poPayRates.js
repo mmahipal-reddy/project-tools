@@ -78,7 +78,11 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
       });
     }
     
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    // Apply GPC-Filter
+    const { applyGPCFilterToWhereClause } = require('../utils/gpcFilterQueryBuilder');
+    let whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : '';
+    whereClause = applyGPCFilterToWhereClause(whereClause, req, { accountField: 'Project__r.Account__c', projectField: 'Project__c' });
+    const finalWhereClause = whereClause ? `WHERE ${whereClause}` : '';
     
     // Default columns + rates fields
     const defaultFields = [
@@ -113,7 +117,7 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     const queryLimit = limit + 1;
     const query = `SELECT ${allSelectFields.join(', ')} 
                    FROM Project_Objective__c 
-                   ${whereClause}
+                   ${finalWhereClause}
                    ORDER BY Name
                    LIMIT ${queryLimit}
                    OFFSET ${offset}`;

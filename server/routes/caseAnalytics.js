@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
+const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

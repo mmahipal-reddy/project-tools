@@ -549,14 +549,75 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
       const fieldsToSelect = hasProjectObjectiveNameField
         ? 'Id, Name, Project_Objective_Name__c, Country__c, Language__c, Project__r.Name, Status__c'
         : 'Id, Name, Country__c, Language__c, Project__r.Name, Status__c';
-      const query = `
+      
+      // Build GPC filter conditions (only if feature is enabled)
+      const { ENABLE_GPC_FILTER } = require('../config/featureFlags');
+      let gpcConditions = [];
+      const gpcAccounts = ENABLE_GPC_FILTER ? (req.query.gpcInterestedAccounts || req.query.gpc_accounts) : null;
+      const gpcProjects = ENABLE_GPC_FILTER ? (req.query.gpcInterestedProjects || req.query.gpc_projects) : null;
+      
+      // For account filtering, we need to get Project IDs first
+      if (gpcAccounts) {
+        const accountIds = gpcAccounts.split(',').filter(id => id.trim() && /^[a-zA-Z0-9]{15,18}$/.test(id.trim()));
+        if (accountIds.length > 0) {
+          try {
+            const escapedAccountIds = accountIds.map(id => `'${id.trim()}'`).join(', ');
+            const projectsQuery = `SELECT Id FROM Project__c WHERE Account__c IN (${escapedAccountIds}) LIMIT 1000`;
+            const projectsResult = await conn.query(projectsQuery);
+            const projectIds = (projectsResult.records || []).map(p => p.Id);
+            if (projectIds.length > 0) {
+              const escapedProjectIds = projectIds.map(id => `'${id}'`).join(', ');
+              gpcConditions.push(`Project__c IN (${escapedProjectIds})`);
+            } else {
+              // No projects for these accounts, return empty result
+              return res.json({
+                success: true,
+                projectObjectives: [],
+                total: 0,
+                hasMore: false
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching projects for GPC account filter:', error);
+          }
+        }
+      }
+      
+      // For project filtering, use Project__c directly
+      if (gpcProjects) {
+        const projectIds = gpcProjects.split(',').filter(id => id.trim() && /^[a-zA-Z0-9]{15,18}$/.test(id.trim()));
+        if (projectIds.length > 0) {
+          const escapedProjectIds = projectIds.map(id => `'${id.trim()}'`).join(', ');
+          gpcConditions.push(`Project__c IN (${escapedProjectIds})`);
+        }
+      }
+      
+      // Combine GPC conditions with OR (user is interested in accounts OR projects)
+      let gpcWhereClause = '';
+      if (gpcConditions.length > 0) {
+        gpcWhereClause = `(${gpcConditions.join(' OR ')})`;
+      }
+      
+      // Build final WHERE clause
+      let whereClause = '';
+      if (statusCondition) {
+        whereClause = statusCondition;
+        if (gpcWhereClause) {
+          whereClause += ` AND ${gpcWhereClause}`;
+        }
+      } else if (gpcWhereClause) {
+        whereClause = `WHERE ${gpcWhereClause}`;
+      }
+      
+      let query = `
         SELECT ${fieldsToSelect}
         FROM Project_Objective__c
-        ${statusCondition}
+        ${whereClause}
         ORDER BY CreatedDate DESC
         LIMIT ${limit}
         OFFSET ${offset}
       `;
+      
       checkTimeout();
       const result = await conn.query(query);
       
@@ -580,15 +641,72 @@ router.get('/project-objectives-without-workstreams', authenticate, authorize('v
       const fieldsToSelect = hasProjectObjectiveNameField
         ? 'Id, Name, Project_Objective_Name__c, Country__c, Language__c, Project__r.Name, Status__c'
         : 'Id, Name, Country__c, Language__c, Project__r.Name, Status__c';
-      const query = `
+      // Build GPC filter conditions (only if feature is enabled)
+      const { ENABLE_GPC_FILTER } = require('../config/featureFlags');
+      let gpcConditions = [];
+      const gpcAccounts = ENABLE_GPC_FILTER ? (req.query.gpcInterestedAccounts || req.query.gpc_accounts) : null;
+      const gpcProjects = ENABLE_GPC_FILTER ? (req.query.gpcInterestedProjects || req.query.gpc_projects) : null;
+      
+      // For account filtering, we need to get Project IDs first
+      if (gpcAccounts) {
+        const accountIds = gpcAccounts.split(',').filter(id => id.trim() && /^[a-zA-Z0-9]{15,18}$/.test(id.trim()));
+        if (accountIds.length > 0) {
+          try {
+            const escapedAccountIds = accountIds.map(id => `'${id.trim()}'`).join(', ');
+            const projectsQuery = `SELECT Id FROM Project__c WHERE Account__c IN (${escapedAccountIds}) LIMIT 1000`;
+            const projectsResult = await conn.query(projectsQuery);
+            const projectIds = (projectsResult.records || []).map(p => p.Id);
+            if (projectIds.length > 0) {
+              const escapedProjectIds = projectIds.map(id => `'${id}'`).join(', ');
+              gpcConditions.push(`Project__c IN (${escapedProjectIds})`);
+            } else {
+              // No projects for these accounts, return empty result
+              return res.json({
+                success: true,
+                projectObjectives: [],
+                total: 0,
+                hasMore: false
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching projects for GPC account filter:', error);
+          }
+        }
+      }
+      
+      // For project filtering, use Project__c directly
+      if (gpcProjects) {
+        const projectIds = gpcProjects.split(',').filter(id => id.trim() && /^[a-zA-Z0-9]{15,18}$/.test(id.trim()));
+        if (projectIds.length > 0) {
+          const escapedProjectIds = projectIds.map(id => `'${id.trim()}'`).join(', ');
+          gpcConditions.push(`Project__c IN (${escapedProjectIds})`);
+        }
+      }
+      
+      // Combine GPC conditions with OR (user is interested in accounts OR projects)
+      let gpcWhereClause = '';
+      if (gpcConditions.length > 0) {
+        gpcWhereClause = `(${gpcConditions.join(' OR ')})`;
+      }
+      
+      // Build final WHERE clause
+      let whereClause = `WHERE Id NOT IN (${idsString})`;
+      if (statusCondition) {
+        whereClause += ` ${statusCondition}`;
+      }
+      if (gpcWhereClause) {
+        whereClause += ` AND ${gpcWhereClause}`;
+      }
+      
+      let query = `
         SELECT ${fieldsToSelect}
         FROM Project_Objective__c
-        WHERE Id NOT IN (${idsString})
-        ${statusCondition}
+        ${whereClause}
         ORDER BY CreatedDate DESC
         LIMIT ${limit}
         OFFSET ${offset}
       `;
+      
       checkTimeout();
       const result = await conn.query(query);
       

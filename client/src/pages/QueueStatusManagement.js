@@ -9,6 +9,9 @@ import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import BookmarkButton from '../components/BookmarkButton';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToParams } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import { getAllowedTransitions, isValidTransition, getTransitionDescription } from './QueueStatusManagement/transitionRules';
 import '../styles/QueueStatusManagement.css';
 import '../styles/Sidebar.css';
@@ -16,6 +19,7 @@ import '../styles/GlobalHeader.css';
 
 const QueueStatusManagement = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -80,6 +84,10 @@ const QueueStatusManagement = () => {
       if (queueStatusFilter && queueStatusFilter !== '') {
         params.append('queueStatusFilter', queueStatusFilter);
       }
+      
+      // Apply GPC-Filter
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
       
       const response = await apiClient.get(`/queue-status-management/contributor-projects?${params.toString()}`);
       if (response.data.success) {
@@ -208,11 +216,17 @@ const QueueStatusManagement = () => {
       params.append('queueStatusFilter', currentQueueStatusFilter);
     }
     
+    // Apply GPC-Filter
+    const gpcFilterParams = getFilterParams();
+    applyGPCFilterToParams(params, gpcFilterParams);
+    
     apiClient.get(`/queue-status-management/contributor-projects?${params.toString()}`)
       .then(response => {
         if (response.data.success) {
           setContributorProjects(prev => {
             const newProjects = [...prev, ...(response.data.projects || [])];
+            // Update ref with new projects
+            contributorProjectsRef.current = newProjects;
             return newProjects;
           });
           setHasMoreProjects(response.data.hasMore || false);
@@ -227,7 +241,7 @@ const QueueStatusManagement = () => {
         loadingMoreRef.current = false;
         setLoadingMore(false);
       });
-  }, []);
+  }, [getFilterParams]);
 
   // Set up IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -554,6 +568,9 @@ const QueueStatusManagement = () => {
                   <h1 className="page-title">Queue Status Management</h1>
                   <p className="page-subtitle">Manage Queue Status for Contributor Projects</p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Queue Status Management" pageType="page" />

@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
-import { Save, User, Shield, Bell, Menu, LogOut, Download, FileText } from 'lucide-react';
+import { Save, User, Shield, Bell, Menu, LogOut, Download, FileText, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { saveUserSettings, loadUserSettings } from '../utils/draftStorage';
 import apiClient from '../config/api';
+import UserPreferencesPanel from '../components/UserPreferences/UserPreferencesPanel';
 import '../styles/Settings.css';
 
 const Settings = ({ asTab = false }) => {
@@ -140,6 +141,17 @@ const Settings = ({ asTab = false }) => {
                 </div>
                 <p className="field-description">Your current permissions</p>
               </div>
+            </div>
+          </div>
+
+          {/* User Preferences Section (GPC-Filter) */}
+          <div className="settings-section">
+            <div className="section-header">
+              <Filter size={24} />
+              <h2>Content Filtering Preferences</h2>
+            </div>
+            <div className="settings-form">
+              <UserPreferencesPanel />
             </div>
           </div>
           

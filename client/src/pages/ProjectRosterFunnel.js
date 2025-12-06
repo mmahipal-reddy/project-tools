@@ -5,6 +5,9 @@ import useSidebarWidth from '../hooks/useSidebarWidth';
 import { Menu, LogOut, RefreshCw, Loader } from 'lucide-react';
 import apiClient from '../config/api';
 import toast from 'react-hot-toast';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToConfig } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import ProjectRosterFunnelTable from '../components/ProjectRosterFunnel/ProjectRosterFunnelTable';
 import '../styles/ProjectRosterFunnel.css';
 import '../styles/Sidebar.css';
@@ -12,6 +15,7 @@ import '../styles/GlobalHeader.css';
 
 const ProjectRosterFunnel = () => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -42,13 +46,15 @@ const ProjectRosterFunnel = () => {
     
     try {
       // Use extended timeout for this endpoint (5 minutes)
-      const response = await apiClient.get('/project-roster-funnel', {
+      const gpcFilterParams = getFilterParams();
+      const config = applyGPCFilterToConfig({
         timeout: 300000, // 5 minutes
         params: {
           limit: LIMIT,
           offset: currentOffset
         }
-      });
+      }, gpcFilterParams);
+      const response = await apiClient.get('/project-roster-funnel', config);
       if (response.data.success) {
         const newData = response.data.data || [];
         if (append) {
@@ -83,7 +89,7 @@ const ProjectRosterFunnel = () => {
       setRefreshing(false);
       loadingMoreRef.current = false;
     }
-  }, [LIMIT]);
+  }, [LIMIT, getFilterParams]);
 
   const loadMoreData = useCallback(() => {
     if (loadingMoreRef.current || !hasMoreRef.current) {
@@ -149,6 +155,9 @@ const ProjectRosterFunnel = () => {
                   <h1 className="page-title">Project Roster Funnel</h1>
                   <p className="page-subtitle">View contributor counts by status for each Project Objective</p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <div className="user-profile">

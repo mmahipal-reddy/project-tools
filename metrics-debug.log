@@ -22875,3 +22875,91 @@ Didn't understand relationship 'Contributor__c__r' in field path. If you are att
 [2025-12-05T06:49:27.862Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
 [2025-12-05T06:49:27.952Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
 [2025-12-05T06:49:31.006Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-06T09:54:20.089Z] === FETCHING ACTIVE CONTRIBUTORS ===
+[2025-12-06T09:54:20.293Z] === FETCHING KYC STATUS ===
+[2025-12-06T09:54:20.298Z] === FETCHING ONBOARDING CONTRIBUTORS ===
+[2025-12-06T09:54:20.300Z] === FETCHING ACTIVE CONTRIBUTORS BY PROJECT (FAST OPTIMIZED) ===
+[2025-12-06T09:54:20.623Z] === FETCHING PRODUCTIVE CONTRIBUTORS ===
+[2025-12-06T09:54:21.066Z] Error fetching productive contributors:
+{
+  "message": "\nStatus__c = 'Production' AND (Account__c IN ('001TR00000CU8o6YAD')\n                              ^\nERROR at Row:3:Column:68\nNo such column 'Account__c' on entity 'Contributor_Project__c'. If you are attempting to use a custom field, be sure to append the '__c' after the custom field name. Please reference your WSDL or the describe call for the appropriate names."
+}
+[2025-12-06T09:54:21.067Z] === FINAL CROWD DASHBOARD METRICS ===
+{
+  "targetHC": 0,
+  "totalApplications": 0,
+  "totalQualified": 0,
+  "totalActiveOnProjects": 0,
+  "totalProductive": 0,
+  "lastRefreshed": "2025-12-06T09:54:20.274Z"
+}
+[2025-12-06T09:54:21.393Z] === FETCHING ACTIVE CONTRIBUTORS BY COUNTRY-LANGUAGE (FAST OPTIMIZED) (ALL DATA) ===
+[2025-12-06T09:54:21.555Z] === FETCHING ACTIVE CONTRIBUTORS BY CONTRIBUTOR SOURCE ===
+[2025-12-06T09:54:21.582Z] === FETCHING ACTIVE CONTRIBUTORS BY CONTRIBUTOR TYPE ===
+[2025-12-06T09:54:21.591Z] === FETCHING ACTIVE CONTRIBUTORS BY SOURCE DETAILS ===
+[2025-12-06T09:54:21.593Z] === FETCHING ACTIVE CONTRIBUTORS BY CONTRIBUTOR STATUS ===
+[2025-12-06T09:54:22.132Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-06T09:54:22.135Z] Executing optimized query with fields: Project__c, Project__r.Name, Contributor__c
+[2025-12-06T09:54:22.509Z] ✓ Found contributor type field: Contributor_Type__c
+[2025-12-06T09:54:22.551Z] All source-related fields found on Contact:
+[
+  "LeadSource",
+  "Contributor_Source__c",
+  "Source_Details__c"
+]
+[2025-12-06T09:54:22.552Z] ✓ Found source field (exact match): Source_Details__c
+[2025-12-06T09:54:22.552Z] Using source field: Source_Details__c (type: string, queryable: undefined)
+[2025-12-06T09:54:22.624Z] ✓ Found contributor status field: Contributor_Status__c
+[2025-12-06T09:54:22.672Z] ✓ Found contributor source field (exact match): Contributor_Source__c
+[2025-12-06T09:54:22.674Z] Using contributor source field: Contributor_Source__c (type: picklist, queryable: undefined)
+[2025-12-06T09:54:22.679Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-06T09:54:23.458Z] Discovered fields - Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-06T09:54:23.459Z] Using fields - Contact: Contributor__c (relationship: Contributor__r), Country: MailingCountry, Language: Primary_Language_Spoken__c
+[2025-12-06T09:54:23.460Z] Attempting optimized relationship query...
+[2025-12-06T09:54:23.598Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-06T09:54:23.748Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-06T09:54:24.048Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-06T09:54:24.210Z] Discovered fields - Contact: Contributor__c (relationship: Contributor__r), Project: Project__c (relationship: Project__r), Project Name: Name
+[2025-12-06T09:54:24.211Z] Using contact field: Contributor__c in Contributor_Project__c
+[2025-12-06T09:54:38.478Z] [18.2s] Processed 10 batches, 20000 records, 52 unique projects
+[2025-12-06T09:54:39.267Z] [17.9s] Processed 10 batches, 20000 records, 64 countries
+[2025-12-06T09:54:45.457Z] [25.2s] Processed 20 batches, 40000 records, 70 unique projects
+[2025-12-06T09:54:48.864Z] [27.5s] Processed 20 batches, 40000 records, 75 countries
+[2025-12-06T09:54:53.436Z] [33.1s] Processed 30 batches, 60000 records, 85 unique projects
+[2025-12-06T09:54:58.601Z] [37.2s] Processed 30 batches, 60000 records, 105 countries
+[2025-12-06T09:54:58.983Z] [38.7s] Processed 40 batches, 80000 records, 130 unique projects
+[2025-12-06T09:55:04.960Z] [44.7s] Processed 50 batches, 100000 records, 173 unique projects
+[2025-12-06T09:55:07.120Z] [45.7s] Processed 40 batches, 80000 records, 107 countries
+[2025-12-06T09:55:11.930Z] [51.6s] Processed 60 batches, 120000 records, 218 unique projects
+[2025-12-06T09:55:15.407Z] [54.0s] Processed 50 batches, 100000 records, 107 countries
+[2025-12-06T09:55:18.057Z] [57.8s] Processed 70 batches, 140000 records, 247 unique projects
+[2025-12-06T09:55:23.434Z] [62.0s] Processed 60 batches, 120000 records, 107 countries
+[2025-12-06T09:55:23.561Z] [63.3s] Processed 80 batches, 160000 records, 253 unique projects
+[2025-12-06T09:55:29.629Z] [69.3s] Processed 90 batches, 180000 records, 280 unique projects
+[2025-12-06T09:55:30.643Z] [69.3s] Processed 70 batches, 140000 records, 141 countries
+[2025-12-06T09:55:35.421Z] [75.1s] Processed 100 batches, 200000 records, 318 unique projects
+[2025-12-06T09:55:38.176Z] [76.8s] Processed 80 batches, 160000 records, 144 countries
+[2025-12-06T09:55:41.181Z] [80.9s] Processed 110 batches, 220000 records, 407 unique projects
+[2025-12-06T09:55:43.311Z] Processed 20/678 contact batches, 3 unique statuses
+[2025-12-06T09:55:43.433Z] [81.9s] Processed 20/678 contact batches (2.9%), 4 unique sources
+[2025-12-06T09:55:45.679Z] [84.1s] Processed 20/678 contact batches (2.9%), 17 unique sources
+[2025-12-06T09:55:46.054Z] [84.7s] Processed 90 batches, 180000 records, 149 countries
+[2025-12-06T09:55:47.965Z] Processed 20/678 contact batches, 1 unique types
+[2025-12-06T09:55:48.065Z] [87.8s] Processed 120 batches, 240000 records, 495 unique projects
+[2025-12-06T09:55:49.246Z] ✓ Completed in 88.9s: 545 projects, 242239 records processed
+[2025-12-06T09:55:49.253Z] Top 10 projects: Falcon UCI FB (Uolo) v2 (20551), P13586 Penguin Query Relevance (Peppermint) (15475), Falcon OOPS Ads (Ogden) (14181), P19986 Falcon ASR Utterances Locale Expansion (Manicaria) (13022), CR10001 Thunderbird Media Products (Wells) (10351), P19730 Falcon Objects with Description 2024 Video (Obersee) (9406), P19986 ASR Utterances Falcon Speech Collection (Manitoba) (6103), P20065 i18n Image Mobile - Q2 (Mariana) (5494), P19730 Falcon Objects with Description 2024 Video + Depth (Alpsee) (5376), P20235 Falcon TTS FEAR Seamless (Daloy) (4928)
+[2025-12-06T09:55:50.761Z] Processed 40/678 contact batches, 3 unique statuses
+[2025-12-06T09:55:51.481Z] [89.9s] Processed 40/678 contact batches (5.9%), 4 unique sources
+[2025-12-06T09:55:52.424Z] [90.8s] Processed 40/678 contact batches (5.9%), 17 unique sources
+[2025-12-06T09:55:53.192Z] [91.8s] Processed 100 batches, 200000 records, 155 countries
+[2025-12-06T09:55:54.251Z] Processed 40/678 contact batches, 2 unique types
+[2025-12-06T09:55:56.681Z] Processed 60/678 contact batches, 3 unique statuses
+[2025-12-06T09:55:57.222Z] [95.7s] Processed 60/678 contact batches (8.8%), 4 unique sources
+[2025-12-06T09:55:58.662Z] [97.1s] Processed 60/678 contact batches (8.8%), 17 unique sources
+[2025-12-06T09:55:59.624Z] [98.2s] Processed 110 batches, 220000 records, 155 countries
+[2025-12-06T09:55:59.669Z] Processed 60/678 contact batches, 2 unique types
+[2025-12-06T09:56:03.332Z] [101.8s] Processed 80/678 contact batches (11.8%), 4 unique sources
+[2025-12-06T09:56:04.092Z] Processed 80/678 contact batches, 3 unique statuses
+[2025-12-06T09:56:04.724Z] [103.1s] Processed 80/678 contact batches (11.8%), 17 unique sources
+[2025-12-06T09:56:05.732Z] Processed 80/678 contact batches, 2 unique types
+[2025-12-06T09:56:06.873Z] [105.5s] Processed 120 batches, 240000 records, 155 countries

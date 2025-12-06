@@ -182,7 +182,11 @@ router.get('/contributor-projects', authenticate, authorize('view_project', 'all
     }
     
     // Build WHERE clause
-    const whereClause = whereConditions.join(' AND ');
+    let whereClause = whereConditions.join(' AND ');
+    
+    // Apply GPC-Filter
+    const { applyGPCFilterToWhereClause } = require('../utils/gpcFilterQueryBuilder');
+    whereClause = applyGPCFilterToWhereClause(whereClause, req, { accountField: 'Project__r.Account__c', projectField: 'Project__c' });
     
     // Query ALL Contributor_Project__c records with filters applied
     // Exclude Contributor Projects with status "Removed" or "Closed"

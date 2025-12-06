@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const asyncHandler = require('../utils/salesforce/asyncHandler');
 const { createSalesforceConnection } = require('../services/salesforce/connectionService');
+const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
 
 /**
  * Calculate time in status using hybrid approach
@@ -236,6 +237,9 @@ router.get('/overview', authenticate, authorize('view_project', 'all'), asyncHan
       ORDER BY CreatedDate DESC
       LIMIT 10000
     `;
+    
+    // Apply GPC filter
+    query = applyGPCFilterToQuery(query, req);
     
     // Try to add relationship fields and date fields if they exist
     try {

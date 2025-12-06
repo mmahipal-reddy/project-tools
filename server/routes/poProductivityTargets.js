@@ -35,6 +35,12 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
       whereConditions.push(`(Name LIKE '%${sanitizedSearch}%' OR Project__r.Name LIKE '%${sanitizedSearch}%')`);
     }
     
+    // Apply GPC-Filter
+    const { applyGPCFilterToWhereClause } = require('../utils/gpcFilterQueryBuilder');
+    let whereClause = whereConditions.length > 0 ? whereConditions.join(' AND ') : '';
+    whereClause = applyGPCFilterToWhereClause(whereClause, req, { accountField: 'Project__r.Account__c', projectField: 'Project__c' });
+    whereConditions = whereClause ? [whereClause] : [];
+    
     // Apply filters with operators (like Case Management)
     if (filters && Array.isArray(filters) && filters.length > 0) {
       try {
@@ -161,7 +167,8 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
       }
     }
     
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    // whereClause already includes GPC filter from above
+    const finalWhereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
     // Default columns for productivity targets
     const defaultFields = [
@@ -197,7 +204,7 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     const queryLimit = limit + 1;
     const query = `SELECT ${allSelectFields.join(', ')} 
                    FROM Project_Objective__c 
-                   ${whereClause}
+                   ${finalWhereClause}
                    ORDER BY Name
                    LIMIT ${queryLimit}
                    OFFSET ${offset}`;

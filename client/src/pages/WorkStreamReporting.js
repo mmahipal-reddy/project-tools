@@ -8,6 +8,9 @@ import apiClient from '../config/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import WorkStreamFilter from '../components/WorkStreamManagement/WorkStreamFilter';
+import { useGPCFilter } from '../context/GPCFilterContext';
+import { applyGPCFilterToParams } from '../utils/gpcFilter';
+import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import '../styles/WorkStreamReporting.css';
 import '../styles/Sidebar.css';
 import '../styles/GlobalHeader.css';
@@ -15,6 +18,7 @@ import '../styles/GlobalTableHeaders.css';
 
 const WorkStreamReporting = ({ hideHeader = false }) => {
   const { user, logout } = useAuth();
+  const { getFilterParams } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -103,6 +107,10 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
       if (filters.projectObjectiveStatus && filters.projectObjectiveStatus.length > 0) {
         filters.projectObjectiveStatus.forEach(status => params.append('projectObjectiveStatus', status));
       }
+      
+      // Apply GPC-Filter
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
       
       const queryString = params.toString();
       const url = `/workstream-reporting/summary${queryString ? '?' + queryString : ''}`;
@@ -219,7 +227,13 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
     try {
       const encodedDeliveryTool = encodeURIComponent(deliveryToolName);
       const refreshParam = forceRefresh ? '?refresh=true' : '';
-      const response = await apiClient.get(`/workstream-reporting/contributor-projects-count/${encodedDeliveryTool}${refreshParam}`, {
+      const params = new URLSearchParams();
+      if (refreshParam) params.append('refresh', 'true');
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
+      const queryString = params.toString();
+      const url = `/workstream-reporting/contributor-projects-count/${encodedDeliveryTool}${queryString ? '?' + queryString : refreshParam}`;
+      const response = await apiClient.get(url, {
         timeout: 300000 // 5 minutes timeout to match download endpoint and allow for large datasets
       });
       
@@ -350,7 +364,12 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
     }
     try {
       const encodedDeliveryTool = encodeURIComponent(deliveryToolName);
-      const response = await apiClient.get(`/workstream-reporting/project-objectives/${encodedDeliveryTool}?limit=50&offset=${offset}`);
+      const params = new URLSearchParams();
+      params.append('limit', '50');
+      params.append('offset', offset.toString());
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
+      const response = await apiClient.get(`/workstream-reporting/project-objectives/${encodedDeliveryTool}?${params.toString()}`);
       if (response.data.success) {
         const newObjectives = response.data.projectObjectives || [];
         if (append) {
@@ -420,9 +439,12 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
     try {
       const offset = append ? contributorProjects.length : 0;
       const limit = 1000;
-      const response = await apiClient.get(`/workstream-reporting/contributor-projects/${projectObjective.id}`, {
-        params: { offset, limit }
-      });
+      const params = new URLSearchParams();
+      params.append('offset', offset.toString());
+      params.append('limit', limit.toString());
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
+      const response = await apiClient.get(`/workstream-reporting/contributor-projects/${projectObjective.id}?${params.toString()}`);
       if (response.data.success) {
         if (append) {
           setContributorProjects(prev => [...prev, ...(response.data.contributorProjects || [])]);
@@ -462,7 +484,17 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
         ...(filters.projectStatus && filters.projectStatus.length > 0 ? { projectStatus: filters.projectStatus } : {}),
         ...(filters.projectObjectiveStatus && filters.projectObjectiveStatus.length > 0 ? { projectObjectiveStatus: filters.projectObjectiveStatus } : {})
       };
-      const response = await apiClient.get('/workstream-reporting/download-workstreams', { params });
+      const urlParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach(v => urlParams.append(key, v));
+        } else {
+          urlParams.append(key, value);
+        }
+      });
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(urlParams, gpcFilterParams);
+      const response = await apiClient.get(`/workstream-reporting/download-workstreams?${urlParams.toString()}`);
       
       if (response.data.success && response.data.workstreams) {
         const workstreamsData = response.data.workstreams;
@@ -555,8 +587,17 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
         ...(filters.projectStatus && filters.projectStatus.length > 0 ? { projectStatus: filters.projectStatus } : {}),
         ...(filters.projectObjectiveStatus && filters.projectObjectiveStatus.length > 0 ? { projectObjectiveStatus: filters.projectObjectiveStatus } : {})
       };
-      const response = await apiClient.get(`/workstream-reporting/contributor-projects-by-tool/${encodedDeliveryTool}`, {
-        params,
+      const urlParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach(v => urlParams.append(key, v));
+        } else {
+          urlParams.append(key, value);
+        }
+      });
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(urlParams, gpcFilterParams);
+      const response = await apiClient.get(`/workstream-reporting/contributor-projects-by-tool/${encodedDeliveryTool}?${urlParams.toString()}`, {
         timeout: 300000 // 5 minutes timeout for large datasets
       });
 
@@ -688,7 +729,11 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
   const fetchAnalytics = async () => {
     setLoadingAnalytics(true);
     try {
-      const response = await apiClient.get(`/workstream-reporting/analytics?days=${analyticsDays}`);
+      const params = new URLSearchParams();
+      params.append('days', analyticsDays.toString());
+      const gpcFilterParams = getFilterParams();
+      applyGPCFilterToParams(params, gpcFilterParams);
+      const response = await apiClient.get(`/workstream-reporting/analytics?${params.toString()}`);
       if (response.data.success) {
         const trends = response.data.trends || {};
         setAnalyticsData(trends);
@@ -845,6 +890,7 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
 
   const content = (
     <>
+      {!hideHeader && <GPCFilterToggle />}
       <div className="workstream-reporting-content">
           {/* Stale Data Warning */}
           {dataStale && (

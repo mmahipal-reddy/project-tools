@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { GPCFilterProvider } from './context/GPCFilterContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
 import Login from './pages/Login';
@@ -82,6 +83,7 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
+        <GPCFilterProvider>
         <Router>
           <div className="App">
             <Toaster
@@ -464,6 +466,7 @@ function App() {
           <QuickActionsMenu />
           </div>
         </Router>
+        </GPCFilterProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

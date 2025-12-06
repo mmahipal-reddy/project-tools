@@ -45,8 +45,11 @@ router.get('/overview', authenticate, authorize('view_project', 'all'), asyncHan
       }
     }
     
+    // Apply GPC filter helper
+    const { applyGPCFilterToQuery } = require('../utils/gpcFilterQueryBuilder');
+    
     // Get project status distribution
-    const statusQuery = `
+    let statusQuery = `
       SELECT 
         Project_Status__c status,
         COUNT(Id) RecordCount
@@ -64,14 +67,15 @@ router.get('/overview', authenticate, authorize('view_project', 'all'), asyncHan
     checkTimeout();
     
     // Get total projects count
-    const totalProjectsQuery = `SELECT COUNT() FROM Project__c WHERE Id != null ${accountWhereClause}`;
+    let totalProjectsQuery = `SELECT COUNT() FROM Project__c WHERE Id != null ${accountWhereClause}`;
+    totalProjectsQuery = applyGPCFilterToQuery(totalProjectsQuery, req, { projectField: 'Id' });
     const totalProjectsResult = await conn.query(totalProjectsQuery);
     const totalProjects = totalProjectsResult.totalSize || 0;
     
     checkTimeout();
     
     // Get projects with dates for duration calculation
-    const durationQuery = `
+    let durationQuery = `
       SELECT 
         Id,
         Hire_Start_Date__c,
@@ -83,6 +87,9 @@ router.get('/overview', authenticate, authorize('view_project', 'all'), asyncHan
         AND Predicted_Close_Date__c != null ${accountWhereClause}
       LIMIT 1000
     `;
+    
+    // Apply GPC filter
+    durationQuery = applyGPCFilterToQuery(durationQuery, req, { projectField: 'Id' });
     
     let durationResult = await conn.query(durationQuery);
     let allDurationProjects = durationResult.records || [];
@@ -143,9 +150,12 @@ router.get('/overview', authenticate, authorize('view_project', 'all'), asyncHan
       WHERE CreatedDate >= ${thirtyDaysAgo.toISOString()} ${accountWhereClause}
     `;
     
+    // Apply GPC filter
+    let recentProjectsQueryFiltered = applyGPCFilterToQuery(recentProjectsQuery, req, { projectField: 'Id' });
+    
     let recentProjectsCount = 0;
     try {
-      const recentResult = await conn.query(recentProjectsQuery);
+      const recentResult = await conn.query(recentProjectsQueryFiltered);
       recentProjectsCount = recentResult.totalSize || 0;
     } catch (error) {
       console.error('Error getting recent projects:', error);
@@ -164,7 +174,10 @@ router.get('/overview', authenticate, authorize('view_project', 'all'), asyncHan
       LIMIT 50
     `;
     
-    const typeResult = await conn.query(typeQuery);
+    // Apply GPC filter
+    let typeQueryFiltered = applyGPCFilterToQuery(typeQuery, req, { projectField: 'Id' });
+    
+    const typeResult = await conn.query(typeQueryFiltered);
     const projectsByType = (typeResult.records || []).map(r => ({
       type: r.type || 'Unknown',
       count: r.RecordCount || 0
