@@ -1,5 +1,26 @@
 [
   {
+    "date": "2025-12-06",
+    "timestamp": "2025-12-06T14:25:50.278Z",
+    "data": [
+      {
+        "deliveryToolName": "ADAP",
+        "projectObjectivesCount": 92,
+        "projectsCount": 34
+      },
+      {
+        "deliveryToolName": "Other",
+        "projectObjectivesCount": 15,
+        "projectsCount": 3
+      },
+      {
+        "deliveryToolName": "QF",
+        "projectObjectivesCount": 92,
+        "projectsCount": 19
+      }
+    ]
+  },
+  {
     "date": "2025-12-03",
     "timestamp": "2025-12-03T04:21:38.067Z",
     "data": [
