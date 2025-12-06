@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit, Loader, Save, Plus, Info } from 'lucide-react';
+import { X, Edit, Loader, Save, Plus, Info, FileText, Link2, Activity, TrendingUp } from 'lucide-react';
 import apiClient from '../../config/api';
 import toast from 'react-hot-toast';
+import FunnelChart from '../../pages/Dashboard/components/FunnelChart';
+import ProjectRosterFunnelChart from './ProjectRosterFunnelChart';
 import './ObjectViewModal.css';
 
 const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) => {
@@ -13,6 +15,12 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
   const [fieldLabels, setFieldLabels] = useState({});
   const [fieldMetadata, setFieldMetadata] = useState({});
   const [fieldSections, setFieldSections] = useState({});
+  const [childRelationships, setChildRelationships] = useState([]);
+  const [relatedRecords, setRelatedRecords] = useState({});
+  const [activeTab, setActiveTab] = useState('details'); // 'details', 'related', 'funnel'
+  const [funnelData, setFunnelData] = useState(null);
+  const [funnelLoading, setFunnelLoading] = useState(false);
+  const [funnelError, setFunnelError] = useState(null);
   
   // Workstream form state
   const [showWorkstreamForm, setShowWorkstreamForm] = useState(false);
@@ -58,12 +66,18 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
     console.log('[ObjectViewModal] useEffect triggered:', { isOpen, objectId, objectType });
     if (isOpen && objectId) {
       fetchObjectDetails();
+      setActiveTab('details'); // Reset tab when opening modal
     } else {
       // Reset state when modal closes
       setObjectData(null);
       setEditedData({});
       setEditing(false);
       setShowWorkstreamForm(false);
+      setActiveTab('details');
+      setChildRelationships([]);
+      setRelatedRecords({});
+      setFunnelData(null);
+      setFunnelError(null);
       setWorkstreamData({
         projectWorkstreamName: '',
         projectObjective: '',
@@ -87,6 +101,40 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
       }));
     }
   }, [objectData, objectType, objectId, objectName]);
+  
+  // Debug: Log childRelationships whenever it changes
+  useEffect(() => {
+    console.log('[ObjectViewModal] childRelationships state updated:', childRelationships, 'length:', childRelationships.length, 'isArray:', Array.isArray(childRelationships));
+  }, [childRelationships]);
+
+  // Fetch funnel data when funnel tab is active and object is a Project
+  useEffect(() => {
+    if (activeTab === 'funnel' && objectType === 'Project' && objectId && !funnelData && !funnelLoading) {
+      fetchFunnelData();
+    }
+  }, [activeTab, objectType, objectId]);
+
+  const fetchFunnelData = async () => {
+    if (!objectId || objectType !== 'Project') return;
+    
+    setFunnelLoading(true);
+    setFunnelError(null);
+    try {
+      const response = await apiClient.get(`/client-tool-account/object/${objectType}/${objectId}/funnel`);
+      if (response.data.success) {
+        setFunnelData(response.data.data);
+        console.log('[ObjectViewModal] Funnel data loaded:', response.data.data);
+      } else {
+        setFunnelError('Failed to fetch funnel data');
+      }
+    } catch (error) {
+      console.error('[ObjectViewModal] Error fetching funnel data:', error);
+      setFunnelError(error.response?.data?.error || error.message || 'Failed to fetch funnel data');
+      toast.error('Failed to load funnel data');
+    } finally {
+      setFunnelLoading(false);
+    }
+  };
 
   const fetchObjectDetails = async () => {
     setLoading(true);
@@ -97,7 +145,41 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
         setFieldLabels(response.data.fieldLabels || {});
         setFieldMetadata(response.data.fieldMetadata || {});
         setFieldSections(response.data.fieldSections || {});
+        const childRels = response.data.childRelationships || [];
+        const relatedRecs = response.data.relatedRecords || {};
+        console.log('[ObjectViewModal] ✅ Received response:');
+        console.log('[ObjectViewModal]   - childRelationships:', childRels);
+        console.log('[ObjectViewModal]   - childRelationships type:', typeof childRels, Array.isArray(childRels));
+        console.log('[ObjectViewModal]   - childRelationships length:', childRels.length);
+        console.log('[ObjectViewModal]   - relatedRecords keys:', Object.keys(relatedRecs));
+        console.log('[ObjectViewModal]   - relatedRecords details:', Object.keys(relatedRecs).map(key => ({
+          key,
+          recordCount: Array.isArray(relatedRecs[key]) ? relatedRecs[key].length : 'not an array'
+        })));
+        console.log('[ObjectViewModal]   - Full response data keys:', Object.keys(response.data));
+        
+        // Log each relationship and its record count
+        childRels.forEach((rel, idx) => {
+          const records = relatedRecs[rel.relationshipName] || [];
+          console.log(`[ObjectViewModal]   Relationship ${idx + 1}: ${rel.label || rel.childSObject} (${rel.relationshipName}) - ${records.length} records`);
+        });
+        
+        // Ensure we're setting arrays/objects correctly
+        if (Array.isArray(childRels)) {
+          setChildRelationships(childRels);
+        } else {
+          console.warn('[ObjectViewModal] childRelationships is not an array:', childRels);
+          setChildRelationships([]);
+        }
+        
+        if (relatedRecs && typeof relatedRecs === 'object') {
+          setRelatedRecords(relatedRecs);
+        } else {
+          console.warn('[ObjectViewModal] relatedRecords is not an object:', relatedRecs);
+          setRelatedRecords({});
+        }
         setEditedData({});
+        setActiveTab('details'); // Reset to details tab when loading new object
       } else {
         toast.error('Failed to fetch object details');
         onClose();
@@ -438,7 +520,44 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
                 </div>
               )}
 
-              <div className="object-view-modal-fields">
+              {/* Tab Navigation - Always show tabs in view mode */}
+              {!editing && (
+                <div className="object-view-modal-tabs">
+                  <button
+                    className={`object-view-tab ${activeTab === 'details' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('details')}
+                  >
+                    <FileText size={16} />
+                    Details
+                  </button>
+                  <button
+                    className={`object-view-tab ${activeTab === 'related' ? 'active' : ''}`}
+                    onClick={() => {
+                      console.log('[ObjectViewModal] Related Records tab clicked, childRelationships:', childRelationships, 'length:', childRelationships.length);
+                      setActiveTab('related');
+                    }}
+                    disabled={!Array.isArray(childRelationships) || childRelationships.length === 0}
+                    title={(!Array.isArray(childRelationships) || childRelationships.length === 0) ? 'No related records found' : `View ${childRelationships.length} related record types`}
+                  >
+                    <Link2 size={16} />
+                    Related Records {Array.isArray(childRelationships) && childRelationships.length > 0 && `(${childRelationships.length})`}
+                  </button>
+                  {objectType === 'Project' && (
+                    <button
+                      className={`object-view-tab ${activeTab === 'funnel' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('funnel')}
+                      title="View Funnel Report"
+                    >
+                      <TrendingUp size={16} />
+                      Funnel Report
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Tab Content */}
+              {activeTab === 'details' && (
+                <div className="object-view-modal-fields">
                 {sortedSections.map((sectionName) => {
                   const sectionFields = fieldsBySection[sectionName];
                   if (!sectionFields || sectionFields.length === 0) return null;
@@ -517,7 +636,102 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
                   );
                 })}
               </div>
-              
+              )}
+
+              {/* Related Records Tab */}
+              {activeTab === 'related' && (
+                <div className="object-view-related-records">
+                  {childRelationships.length > 0 ? (
+                    childRelationships.map((rel) => {
+                      const records = relatedRecords[rel.relationshipName] || [];
+                      
+                      // Get field names from first record if available
+                      let recordFields = [];
+                      if (records.length > 0 && records[0]) {
+                        recordFields = Object.keys(records[0]).filter(key => 
+                          key !== 'attributes' && 
+                          key !== 'Id' &&
+                          !key.includes('__r')
+                        );
+                      }
+                      
+                      return (
+                        <div key={rel.relationshipName} className="object-view-related-section">
+                          <h3 className="object-view-section-title">
+                            {rel.label || rel.childSObject} ({records.length} {records.length === 1 ? 'record' : 'records'})
+                          </h3>
+                          {records.length > 0 ? (
+                            <div className="object-view-related-table-container">
+                              <table className="object-view-related-table">
+                                <thead>
+                                  <tr>
+                                    {recordFields.slice(0, 12).map(field => (
+                                      <th key={field}>
+                                        {field.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').replace(/__c/g, '').trim()}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {records.map((record, idx) => (
+                                    <tr key={record.Id || idx}>
+                                      {recordFields.slice(0, 12).map(field => (
+                                        <td key={field}>
+                                          {formatFieldValue(record[field], field)}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="object-view-no-related">
+                              <p>No records found for {rel.label || rel.childSObject}.</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="object-view-no-related">
+                      <p>No related records found for this object.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Funnel Report Tab */}
+              {activeTab === 'funnel' && objectType === 'Project' && (
+                <div className="object-view-funnel-tab">
+                  {funnelLoading ? (
+                    <div className="object-view-modal-loading">
+                      <Loader size={24} className="spinning" />
+                      <p>Loading funnel data...</p>
+                    </div>
+                  ) : funnelData ? (
+                    <>
+                      {/* Project Roster Funnel Chart - First Chart */}
+                      <div className="chart-card" style={{ marginBottom: '24px' }}>
+                        <ProjectRosterFunnelChart data={funnelData.rosterFunnel || []} />
+                      </div>
+                      
+                      {/* Existing Funnel Charts */}
+                      <FunnelChart
+                        data={funnelData}
+                        error={funnelError}
+                        onRefresh={fetchFunnelData}
+                        refreshing={funnelLoading}
+                      />
+                    </>
+                  ) : (
+                    <div className="no-data-message" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                      <p>No funnel data available.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Workstream Form Section */}
               {showWorkstreamForm && objectType === 'Project_Objective__c' && (
                 <div 

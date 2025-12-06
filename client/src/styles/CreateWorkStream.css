@@ -28,6 +28,7 @@
   top: 0;
   z-index: 100;
   box-shadow: none;
+  overflow: visible;
 }
 
 .create-workstream .header-content {
@@ -36,6 +37,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-lg);
+  overflow: visible;
 }
 
 .create-workstream .header-left {
