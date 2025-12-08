@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, HelpCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/GlobalHeader.css';
 
@@ -89,6 +89,12 @@ const UserProfileDropdown = () => {
     navigate('/administration?tab=settings');
   };
 
+  const handleHelpClick = () => {
+    setIsOpen(false);
+    const helpUrl = `${window.location.origin}/help`;
+    window.open(helpUrl, '_blank');
+  };
+
   const handleLogoutClick = () => {
     setIsOpen(false);
     logout();
@@ -127,6 +133,13 @@ const UserProfileDropdown = () => {
           >
             <User size={16} />
             <span>Profile</span>
+          </button>
+          <button
+            className="dropdown-menu-item"
+            onClick={handleHelpClick}
+          >
+            <HelpCircle size={16} />
+            <span>Help</span>
           </button>
           <button
             className="dropdown-menu-item"

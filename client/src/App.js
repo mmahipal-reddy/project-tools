@@ -53,6 +53,7 @@ import ContributorMatchMatrix from './pages/ContributorMatchMatrix';
 import POPayRates from './pages/POPayRates';
 import POProductivityTargets from './pages/POProductivityTargets';
 import PMApprovals from './pages/ProjectManagement/PMApprovals/PMApprovals';
+import Help from './pages/Help/Help';
 import './App.css';
 import './styles/GlobalTableHeaders.css';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -456,6 +457,14 @@ function App() {
               element={
                 <RoleProtectedRoute>
                   <ScheduledReportsManager />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <RoleProtectedRoute>
+                  <Help />
                 </RoleProtectedRoute>
               }
             />
