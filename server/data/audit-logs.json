@@ -477,5 +477,51 @@
     "salesforceId": "a2QVC000000t5dN2AQ",
     "status": "success",
     "error": null
+  },
+  {
+    "id": "AUDIT-1765185812109-77aw6205r",
+    "timestamp": "2025-12-08T09:23:32.109Z",
+    "user": "mmoola@appen.com",
+    "action": "Modified",
+    "objectType": "Contributor Project",
+    "objectId": null,
+    "objectName": "Queue Status Update: 1 project(s)",
+    "details": {
+      "operation": "update_queue_status",
+      "recordsUpdated": 1,
+      "updates": [
+        {
+          "projectId": "a02TR00000A17HrYAJ",
+          "fromStatus": "--None--",
+          "toStatus": "Test Queue"
+        }
+      ]
+    },
+    "salesforceId": null,
+    "status": "success",
+    "error": null
+  },
+  {
+    "id": "AUDIT-1765185869157-qzhyw11nl",
+    "timestamp": "2025-12-08T09:24:29.157Z",
+    "user": "mmoola@appen.com",
+    "action": "Modified",
+    "objectType": "Contributor Project",
+    "objectId": null,
+    "objectName": "Queue Status Update: 1 project(s)",
+    "details": {
+      "operation": "update_queue_status",
+      "recordsUpdated": 1,
+      "updates": [
+        {
+          "projectId": "a02TR000008V5QwYAK",
+          "fromStatus": "--None--",
+          "toStatus": "Test Queue"
+        }
+      ]
+    },
+    "salesforceId": null,
+    "status": "success",
+    "error": null
   }
 ]

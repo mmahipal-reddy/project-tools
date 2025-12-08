@@ -93,3 +93,4 @@ const EmailModal = ({ selectedCount, selectedRecords, onConfirm, onClose }) => {
 export default EmailModal;
 
 
+

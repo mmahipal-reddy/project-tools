@@ -48,6 +48,9 @@
 
 .create-workstream .header-right {
   display: flex;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
   align-items: center;
 }
 

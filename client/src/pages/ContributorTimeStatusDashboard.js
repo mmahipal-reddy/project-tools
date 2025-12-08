@@ -211,15 +211,15 @@ const ContributorTimeStatusDashboard = () => {
                   <p className="page-subtitle">Track time spent by contributors in each status</p>
                 </div>
               </div>
+              <div className="header-right">
+                <GPCFilterToggle />
+              </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Contributor Time Through Status" pageType="page" />
                 <UserProfileDropdown />
               </div>
             </div>
           </div>
-
-          {/* GPC-Filter Toggle */}
-          <GPCFilterToggle />
           
           {/* Loading State */}
           {loading && (

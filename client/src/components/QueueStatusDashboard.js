@@ -9,6 +9,7 @@ import apiClient from '../config/api';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import '../styles/CaseManagement.css';
 
 const QueueStatusDashboard = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
@@ -35,8 +36,11 @@ const QueueStatusDashboard = ({ onClose }) => {
       const response = await analyticsClient.get('/queue-status-management/analytics/dashboard');
       if (response.data.success) {
         setDashboardData(response.data.data);
-        if (response.data.recordCount) {
-          console.log(`[Dashboard] Loaded ${response.data.recordCount} records`);
+        const totalCount = response.data.data?.projectsByStatus?.total || response.data.totalCount || 0;
+        const sampleCount = response.data.recordCount || 0;
+        console.log(`[Dashboard] Total Contributor Projects: ${totalCount}, Sample for metrics: ${sampleCount}`);
+        if (response.data._metadata) {
+          console.log('[Dashboard] Metadata:', response.data._metadata);
         }
       }
     } catch (error) {
@@ -97,9 +101,9 @@ const QueueStatusDashboard = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <Loader className="spinner" size={24} style={{ color: '#0176d3' }} />
-        <p style={{ marginTop: '16px', color: '#666' }}>Loading dashboard...</p>
+      <div className="case-table-loading">
+        <Loader className="spinning" size={24} />
+        <p>Loading dashboard...</p>
       </div>
     );
   }
@@ -139,12 +143,15 @@ const QueueStatusDashboard = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Projects by Status */}
+      {/* Contributor Projects by Queue Status */}
       <div style={{ marginBottom: '32px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <BarChart3 size={18} />
-          Projects by Queue Status
+          Contributor Projects by Queue Status
         </h3>
+        <p style={{ fontSize: '12px', color: '#666', marginBottom: '16px', fontStyle: 'italic' }}>
+          Note: Queue Status is tracked at the Contributor Project level. One Project may have multiple Contributor Projects with different queue statuses.
+        </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           {Object.entries(projectsByStatus).filter(([key]) => key !== 'total').map(([status, count]) => (
             <div

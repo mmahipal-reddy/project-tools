@@ -2981,5 +2981,73 @@
     "metadata": {
       "objectType": "Contributor_Review__c"
     }
+  },
+  {
+    "id": "HIST-1765185812101-eut1spss9",
+    "operation": "update",
+    "objectType": "Contributor_Project__c",
+    "name": "Bulk update: 1 succeeded, 0 failed",
+    "salesforceId": null,
+    "publisher": "mmoola@appen.com",
+    "publishedAt": "2025-12-08T09:23:32.101Z",
+    "createdAt": "2025-12-08T09:23:32.101Z",
+    "data": {
+      "results": [
+        {
+          "id": "a02TR00000A17HrYAJ",
+          "success": true,
+          "errors": []
+        }
+      ]
+    },
+    "status": "success",
+    "error": null,
+    "recordCount": 1,
+    "metadata": {
+      "operation": "update_queue_status",
+      "updates": [
+        {
+          "projectId": "a02TR00000A17HrYAJ",
+          "queueStatus": "Test Queue",
+          "currentStatus": null
+        }
+      ],
+      "successCount": 1,
+      "failCount": 0
+    }
+  },
+  {
+    "id": "HIST-1765185869154-lz435yvga",
+    "operation": "update",
+    "objectType": "Contributor_Project__c",
+    "name": "Bulk update: 1 succeeded, 0 failed",
+    "salesforceId": null,
+    "publisher": "mmoola@appen.com",
+    "publishedAt": "2025-12-08T09:24:29.154Z",
+    "createdAt": "2025-12-08T09:24:29.155Z",
+    "data": {
+      "results": [
+        {
+          "id": "a02TR000008V5QwYAK",
+          "success": true,
+          "errors": []
+        }
+      ]
+    },
+    "status": "success",
+    "error": null,
+    "recordCount": 1,
+    "metadata": {
+      "operation": "update_queue_status",
+      "updates": [
+        {
+          "projectId": "a02TR000008V5QwYAK",
+          "queueStatus": "Test Queue",
+          "currentStatus": null
+        }
+      ],
+      "successCount": 1,
+      "failCount": 0
+    }
   }
 ]

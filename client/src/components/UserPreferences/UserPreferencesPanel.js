@@ -9,97 +9,20 @@ import './UserPreferencesPanel.css';
 const ENABLE_GPC_FILTER = process.env.REACT_APP_ENABLE_GPC_FILTER === 'true' || false;
 
 const UserPreferencesPanel = () => {
-  const { refreshPreferences } = useGPCFilter();
-  const [loading, setLoading] = useState(false);
+  const { preferences, loading: contextLoading, initialized, refreshPreferences } = useGPCFilter();
   const [saving, setSaving] = useState(false);
-  const [interestedAccounts, setInterestedAccounts] = useState([]);
-  const [interestedProjects, setInterestedProjects] = useState([]);
+  const [gpcFilterEnabled, setGpcFilterEnabled] = useState(preferences?.gpcFilterEnabled !== undefined ? preferences.gpcFilterEnabled : true);
+  const [interestedAccounts, setInterestedAccounts] = useState(preferences?.interestedAccounts || []);
+  const [interestedProjects, setInterestedProjects] = useState(preferences?.interestedProjects || []);
 
-  // Load preferences on mount
+  // Sync with context preferences when they change
   useEffect(() => {
-    if (ENABLE_GPC_FILTER) {
-      loadPreferences();
+    if (initialized && preferences) {
+      setGpcFilterEnabled(preferences.gpcFilterEnabled !== undefined ? preferences.gpcFilterEnabled : true);
+      setInterestedAccounts(preferences.interestedAccounts || []);
+      setInterestedProjects(preferences.interestedProjects || []);
     }
-  }, []);
-
-  const loadPreferences = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get('/user/preferences');
-      const accounts = response.data.interestedAccounts || [];
-      const projects = response.data.interestedProjects || [];
-      
-      // Backend should return objects with { id, name }, but handle legacy data (IDs only)
-      const normalizedAccounts = accounts.map(item => {
-        if (typeof item === 'object' && item !== null && item.id && item.name) {
-          return item; // Already in correct format
-        }
-        // Legacy: if it's just an ID string, we'll need to fetch the name
-        // For now, return as-is and let the component handle it
-        return typeof item === 'string' ? { id: item, name: item } : item;
-      });
-      
-      const normalizedProjects = projects.map(item => {
-        if (typeof item === 'object' && item !== null && item.id && item.name) {
-          return item; // Already in correct format
-        }
-        // Legacy: if it's just an ID string, we'll need to fetch the name
-        return typeof item === 'string' ? { id: item, name: item } : item;
-      });
-      
-      // If we have legacy IDs, fetch names for them
-      const accountsToFetch = normalizedAccounts.filter(acc => acc.name === acc.id);
-      const projectsToFetch = normalizedProjects.filter(proj => proj.name === proj.id);
-      
-      if (accountsToFetch.length > 0) {
-        const accountPromises = accountsToFetch.map(async (acc) => {
-          try {
-            const searchResponse = await apiClient.get(`/user/preferences/accounts/search?q=${encodeURIComponent(acc.id)}`);
-            const found = searchResponse.data.find(a => a.id === acc.id);
-            return found || acc;
-          } catch {
-            return acc;
-          }
-        });
-        const fetchedAccounts = await Promise.all(accountPromises);
-        // Replace legacy accounts with fetched ones
-        normalizedAccounts.forEach((acc, idx) => {
-          if (acc.name === acc.id) {
-            const fetched = fetchedAccounts.find(fa => fa.id === acc.id);
-            if (fetched) normalizedAccounts[idx] = fetched;
-          }
-        });
-      }
-      
-      if (projectsToFetch.length > 0) {
-        const projectPromises = projectsToFetch.map(async (proj) => {
-          try {
-            const searchResponse = await apiClient.get(`/user/preferences/projects/search?q=${encodeURIComponent(proj.id)}`);
-            const found = searchResponse.data.find(p => p.id === proj.id);
-            return found || proj;
-          } catch {
-            return proj;
-          }
-        });
-        const fetchedProjects = await Promise.all(projectPromises);
-        // Replace legacy projects with fetched ones
-        normalizedProjects.forEach((proj, idx) => {
-          if (proj.name === proj.id) {
-            const fetched = fetchedProjects.find(fp => fp.id === proj.id);
-            if (fetched) normalizedProjects[idx] = fetched;
-          }
-        });
-      }
-      
-      setInterestedAccounts(normalizedAccounts);
-      setInterestedProjects(normalizedProjects);
-    } catch (error) {
-      console.error('Error loading preferences:', error);
-      // Don't show error toast - user might not have preferences yet
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [preferences, initialized]);
 
   const searchAccounts = async (searchTerm) => {
     try {
@@ -149,6 +72,7 @@ const UserPreferencesPanel = () => {
       });
       
       await apiClient.post('/user/preferences', {
+        gpcFilterEnabled: gpcFilterEnabled,
         interestedAccounts: accountsToSave,
         interestedProjects: projectsToSave
       });
@@ -173,7 +97,7 @@ const UserPreferencesPanel = () => {
     );
   }
 
-  if (loading) {
+  if (contextLoading || !initialized) {
     return (
       <div className="user-preferences-panel">
         <div className="preferences-loading">
@@ -194,6 +118,30 @@ const UserPreferencesPanel = () => {
       </div>
 
       <div className="preferences-content">
+        {/* GPC Filter Enable/Disable Toggle */}
+        <div className="preferences-toggle-group">
+          <label className="preferences-toggle-label">
+            <span className="toggle-label-text">
+              <strong>Enable GPC Filtering</strong>
+              <span className="toggle-description">
+                When enabled, dashboards and reports will automatically filter to show only data related to your interested accounts and projects.
+              </span>
+            </span>
+            <div className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={gpcFilterEnabled}
+                onChange={(e) => setGpcFilterEnabled(e.target.checked)}
+                className="toggle-input"
+                id="gpc-filter-toggle"
+              />
+              <label htmlFor="gpc-filter-toggle" className="toggle-slider"></label>
+            </div>
+          </label>
+        </div>
+
+        {gpcFilterEnabled && (
+          <>
         <SearchableMultiSelect
           label="Interested Accounts"
           placeholder="Search and select accounts..."
@@ -213,6 +161,8 @@ const UserPreferencesPanel = () => {
           itemLabelKey="name"
           itemValueKey="id"
         />
+          </>
+        )}
       </div>
 
       <div className="preferences-actions">

@@ -1,9 +1,10 @@
 // Custom hook for CrowdDashboard data fetching
 
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import apiClient from '../../../config/api';
 import toast from 'react-hot-toast';
 import { applyGPCFilterToConfig } from '../../../utils/gpcFilter';
+import { cachedFetch, clearCachePattern, getCacheStats } from '../../../utils/requestCache';
 
 /**
  * Custom hook for managing CrowdDashboard data fetching
@@ -22,12 +23,77 @@ export const useCrowdDashboardData = (
   setWidgetStates,
   gpcFilterParams
 ) => {
+  // Track active requests for cancellation
+  const abortControllersRef = useRef(new Map());
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cancel all pending requests on unmount
+      abortControllersRef.current.forEach(controller => {
+        controller.abort();
+      });
+      abortControllersRef.current.clear();
+    };
+  }, []);
+  // Performance tracking
+  const performanceMetricsRef = useRef({
+    requests: [],
+    cacheHits: 0,
+    cacheMisses: 0,
+    totalTime: 0
+  });
+
   // Fetch base metrics (fast)
-  const fetchBaseMetrics = useCallback(async (silent = false, widgetKey = 'baseMetrics') => {
+  const fetchBaseMetrics = useCallback(async (silent = false, widgetKey = 'baseMetrics', forceRefresh = false) => {
+    // Cancel previous request for this widget if exists
+    const prevController = abortControllersRef.current.get(widgetKey);
+    if (prevController) {
+      prevController.abort();
+    }
+    
+    // Create new abort controller
+    const abortController = new AbortController();
+    abortControllersRef.current.set(widgetKey, abortController);
+    
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
+    
+    const startTime = performance.now();
+    const url = '/crowd-dashboard/metrics';
+    
     try {
-      const config = applyGPCFilterToConfig({ timeout: 60000 }, gpcFilterParams);
-      const response = await apiClient.get('/crowd-dashboard/metrics', config);
+      const response = await cachedFetch(
+        url,
+        gpcFilterParams,
+        async () => {
+          const config = applyGPCFilterToConfig({ 
+            timeout: 60000,
+            signal: abortController.signal 
+          }, gpcFilterParams);
+          return await apiClient.get(url, config);
+        },
+        {
+          ttl: 2 * 60 * 1000, // 2 minutes cache for base metrics
+          useCache: !forceRefresh
+        }
+      );
+      
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      
+      // Track performance
+      performanceMetricsRef.current.requests.push({
+        widget: widgetKey,
+        duration,
+        timestamp: Date.now()
+      });
+      
+      // Keep only last 100 requests
+      if (performanceMetricsRef.current.requests.length > 100) {
+        performanceMetricsRef.current.requests.shift();
+      }
+      
+      const responseData = response.data || response;
       const { activeContributors, onboardingContributors, avgAppReceivedToApplied, avgAppReceivedToActive, ...baseMetrics } = response.data;
       setMetrics(prev => ({
         ...prev,
@@ -43,10 +109,17 @@ export const useCrowdDashboardData = (
         toast.success('Base metrics updated');
       }
     } catch (error) {
+      // Don't show error if request was cancelled
+      if (error.name === 'AbortError' || error.name === 'CanceledError') {
+        return;
+      }
       setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: false, error: error.message } }));
       if (!silent) {
         toast.error('Error loading base metrics');
       }
+    } finally {
+      // Clean up abort controller
+      abortControllersRef.current.delete(widgetKey);
     }
   }, [setMetrics, setWidgetStates, gpcFilterParams]);
 
@@ -54,7 +127,7 @@ export const useCrowdDashboardData = (
   const fetchActiveContributors = useCallback(async (silent = false, widgetKey = 'activeContributors') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const config = applyGPCFilterToConfig({ timeout: 600000 }, gpcFilterParams);
+      const config = applyGPCFilterToConfig({ timeout: 180000 }, gpcFilterParams); // Reduced from 10min to 3min
       const response = await apiClient.get('/crowd-dashboard/active-contributors', config);
       setMetrics(prev => ({
         ...prev,
@@ -78,7 +151,7 @@ export const useCrowdDashboardData = (
   const fetchOnboardingContributors = useCallback(async (silent = false, widgetKey = 'onboardingContributors') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const config = applyGPCFilterToConfig({ timeout: 600000 }, gpcFilterParams);
+      const config = applyGPCFilterToConfig({ timeout: 180000 }, gpcFilterParams); // Reduced from 10min to 3min
       const response = await apiClient.get('/crowd-dashboard/onboarding-contributors', config);
       setMetrics(prev => ({
         ...prev,
@@ -140,7 +213,7 @@ export const useCrowdDashboardData = (
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
       const baseConfig = {
-        timeout: 300000,
+        timeout: 180000, // Reduced from 5min to 3min
         params: { _t: Date.now() }, // Cache busting
         headers: { 'Cache-Control': 'no-cache' }
       };
@@ -167,7 +240,7 @@ export const useCrowdDashboardData = (
     try {
       // Country/Language is demographic data, not project-specific - don't apply GPC filter
       const baseConfig = {
-        timeout: 300000,
+        timeout: 180000, // Reduced from 5min to 3min
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
       };
@@ -209,7 +282,7 @@ export const useCrowdDashboardData = (
     try {
       // Source is demographic data, not project-specific - don't apply GPC filter
       const baseConfig = {
-        timeout: 600000,
+        timeout: 180000, // Reduced from 10min to 3min
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
       };
@@ -259,7 +332,7 @@ export const useCrowdDashboardData = (
   const fetchAvgAppReceivedToApplied = useCallback(async (silent = false, widgetKey = 'avgAppReceivedToApplied') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const config = applyGPCFilterToConfig({ timeout: 120000 }, gpcFilterParams);
+      const config = applyGPCFilterToConfig({ timeout: 90000 }, gpcFilterParams); // Reduced from 2min to 90sec
       const response = await apiClient.get('/crowd-dashboard/avg-app-received-to-applied', config);
       setMetrics(prev => ({
         ...prev,
@@ -281,7 +354,7 @@ export const useCrowdDashboardData = (
   const fetchAvgAppReceivedToActive = useCallback(async (silent = false, widgetKey = 'avgAppReceivedToActive') => {
     setWidgetStates(prev => ({ ...prev, [widgetKey]: { loading: true, error: null } }));
     try {
-      const config = applyGPCFilterToConfig({ timeout: 120000 }, gpcFilterParams);
+      const config = applyGPCFilterToConfig({ timeout: 90000 }, gpcFilterParams); // Reduced from 2min to 90sec
       const response = await apiClient.get('/crowd-dashboard/avg-app-received-to-active', config);
       setMetrics(prev => ({
         ...prev,
@@ -305,7 +378,7 @@ export const useCrowdDashboardData = (
     try {
       // Contributor Source is demographic data, not project-specific - don't apply GPC filter
       const baseConfig = {
-        timeout: 600000,
+        timeout: 180000, // Reduced from 10min to 3min
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
       };
@@ -338,7 +411,7 @@ export const useCrowdDashboardData = (
     try {
       // Contributor Status is demographic data, not project-specific - don't apply GPC filter
       const baseConfig = {
-        timeout: 600000,
+        timeout: 180000, // Reduced from 10min to 3min
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
       };
@@ -371,7 +444,7 @@ export const useCrowdDashboardData = (
     try {
       // Contributor Type is demographic data, not project-specific - don't apply GPC filter
       const baseConfig = {
-        timeout: 600000,
+        timeout: 180000, // Reduced from 10min to 3min
         params: { _t: Date.now() },
         headers: { 'Cache-Control': 'no-cache' }
       };
@@ -400,20 +473,46 @@ export const useCrowdDashboardData = (
   }, [setByContributorType, setWidgetStates]);
 
   const fetchAllData = useCallback(async (silent = false) => {
-    fetchBaseMetrics(silent);
-    fetchActiveContributors(silent);
-    fetchOnboardingContributors(silent);
-    fetchAvgAppReceivedToApplied(silent);
-    fetchAvgAppReceivedToActive(silent);
-    fetchKYCStatus(silent);
-    fetchByCountry(silent);
-    fetchByLanguage(silent);
-    fetchByProject(silent);
-    fetchByCountryLanguage(silent);
-    fetchBySource(silent);
-    fetchByContributorSource(silent);
-    fetchByContributorStatus(silent);
-    fetchByContributorType(silent);
+    // Priority 1: Critical metrics (fast, essential data)
+    const criticalPromises = [
+      fetchBaseMetrics(silent),
+      fetchKYCStatus(silent),
+      fetchByCountry(silent),
+      fetchByLanguage(silent)
+    ];
+    
+    // Priority 2: Important metrics (medium speed)
+    const importantPromises = [
+      fetchActiveContributors(silent),
+      fetchOnboardingContributors(silent),
+      fetchAvgAppReceivedToApplied(silent),
+      fetchAvgAppReceivedToActive(silent),
+      fetchByProject(silent)
+    ];
+    
+    // Priority 3: Heavy metrics (slow, can load after critical data is shown)
+    const heavyPromises = [
+      fetchByCountryLanguage(silent),
+      fetchBySource(silent),
+      fetchByContributorSource(silent),
+      fetchByContributorStatus(silent),
+      fetchByContributorType(silent)
+    ];
+    
+    // Execute in priority order with slight delay between priorities
+    try {
+      // Start critical widgets immediately
+      await Promise.all(criticalPromises);
+      
+      // Start important widgets after critical ones (small delay to avoid overwhelming server)
+      await Promise.all(importantPromises);
+      
+      // Start heavy widgets last (they can take longer)
+      await Promise.all(heavyPromises);
+    } catch (error) {
+      // Individual errors are handled in each fetch function
+      console.error('[CrowdDashboard] Error in fetchAllData:', error);
+    }
   }, [
     fetchBaseMetrics,
     fetchActiveContributors,
@@ -431,6 +530,14 @@ export const useCrowdDashboardData = (
     fetchByContributorType
   ]);
 
+  // Get performance metrics
+  const getPerformanceMetrics = useCallback(() => {
+    return {
+      ...performanceMetricsRef.current,
+      cacheStats: getCacheStats()
+    };
+  }, []);
+
   return {
     fetchBaseMetrics,
     fetchActiveContributors,
@@ -446,7 +553,8 @@ export const useCrowdDashboardData = (
     fetchByContributorSource,
     fetchByContributorStatus,
     fetchByContributorType,
-    fetchAllData
+    fetchAllData,
+    getPerformanceMetrics
   };
 };
 

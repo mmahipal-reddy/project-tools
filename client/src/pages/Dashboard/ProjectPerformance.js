@@ -284,17 +284,15 @@ const ProjectPerformance = () => {
                   <p className="page-subtitle">Monitor project health, metrics, and performance analytics</p>
                 </div>
               </div>
-              <div className="header-actions">
-                <div className="header-user-profile">
-                  <BookmarkButton pageName="Project Performance Dashboard" pageType="page" />
-                  <UserProfileDropdown />
-                </div>
+              <div className="header-right">
+                <GPCFilterToggle />
+              </div>
+              <div className="header-user-profile">
+                <BookmarkButton pageName="Project Performance Dashboard" pageType="page" />
+                <UserProfileDropdown />
               </div>
             </div>
           </div>
-
-          {/* GPC-Filter Toggle */}
-          <GPCFilterToggle />
           
           <div className="project-performance-content">
             {/* Filters and Tabs */}

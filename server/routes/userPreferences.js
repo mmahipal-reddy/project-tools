@@ -107,6 +107,7 @@ router.get('/preferences', authenticate, asyncHandler(async (req, res) => {
   const preferences = getUserPreferences(userId);
   
   res.json({
+    gpcFilterEnabled: preferences?.gpcFilterEnabled !== undefined ? preferences.gpcFilterEnabled : true, // Default to enabled
     interestedAccounts: preferences?.interestedAccounts || [],
     interestedProjects: preferences?.interestedProjects || []
   });
@@ -122,7 +123,7 @@ router.post('/preferences', authenticate, validateCsrf, asyncHandler(async (req,
   }
 
   const userId = req.user.id;
-  const { interestedAccounts, interestedProjects } = req.body;
+  const { gpcFilterEnabled, interestedAccounts, interestedProjects } = req.body;
 
   // Validate input - expect array of objects { id, name }
   if (!Array.isArray(interestedAccounts) || !Array.isArray(interestedProjects)) {
@@ -139,7 +140,11 @@ router.post('/preferences', authenticate, validateCsrf, asyncHandler(async (req,
     item && typeof item.id === 'string' && item.id.trim().length > 0 && typeof item.name === 'string'
   );
 
+  // Validate gpcFilterEnabled (should be boolean, default to true if not provided)
+  const filterEnabled = gpcFilterEnabled !== undefined ? Boolean(gpcFilterEnabled) : true;
+
   const success = saveUserPreference(userId, {
+    gpcFilterEnabled: filterEnabled,
     interestedAccounts: validAccounts,
     interestedProjects: validProjects
   });
@@ -148,13 +153,14 @@ router.post('/preferences', authenticate, validateCsrf, asyncHandler(async (req,
     return res.status(500).json({ error: 'Failed to save preferences' });
   }
 
-  res.json({
-    message: 'Preferences saved successfully',
-    preferences: {
-      interestedAccounts: validAccounts,
-      interestedProjects: validProjects
-    }
-  });
+    res.json({
+      message: 'Preferences saved successfully',
+      preferences: {
+        gpcFilterEnabled: filterEnabled,
+        interestedAccounts: validAccounts,
+        interestedProjects: validProjects
+      }
+    });
 }));
 
 /**

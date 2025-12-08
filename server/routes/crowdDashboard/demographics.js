@@ -61,7 +61,8 @@ router.get('/by-age', authenticate, authorize('view_project', 'all'), asyncHandl
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   
-  req.setTimeout(600000); // 10 minutes
+  req.setTimeout(180000); // Reduced from 10min to 3min
+  res.setTimeout(180000);
   
   try {
     const conn = await getSalesforceConnection();
