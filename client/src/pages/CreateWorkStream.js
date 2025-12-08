@@ -19,7 +19,7 @@ import '../styles/ClientToolAccount.css';
 
 const CreateWorkStream = ({ hideHeader = false }) => {
   const { user, logout } = useAuth();
-  const { getFilterParams } = useGPCFilter();
+  const { getFilterParams, preferences } = useGPCFilter();
   const [searchParams, setSearchParams] = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
@@ -169,6 +169,14 @@ const CreateWorkStream = ({ hideHeader = false }) => {
       fetchProjectObjectives(0, false);
     }
   }, [showForm, fetchProjectObjectives]);
+
+  // Reload data when GPC filter enabled state changes
+  useEffect(() => {
+    if (preferences?.gpcFilterEnabled !== undefined) {
+      // Reload project objectives when GPC filter is toggled
+      fetchProjectObjectives(0, false);
+    }
+  }, [preferences?.gpcFilterEnabled, fetchProjectObjectives]);
 
   // Infinite scroll for project objectives
   useEffect(() => {
@@ -1153,7 +1161,6 @@ const CreateWorkStream = ({ hideHeader = false }) => {
             <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#002329' }}>
               Project Objectives Without Workstreams
             </h2>
-            <GPCFilterToggle />
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"

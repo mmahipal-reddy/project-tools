@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import useSidebarWidth from '../hooks/useSidebarWidth';
 import { Menu, RefreshCw, Settings, Loader } from 'lucide-react';
+import { debounce } from '../utils/debounce';
 import UserProfileDropdown from '../components/UserProfileDropdown/UserProfileDropdown';
 import toast from 'react-hot-toast';
 import BookmarkButton from '../components/BookmarkButton';
@@ -35,11 +36,13 @@ import {
 import { BASELINE_STORAGE_KEY, THRESHOLDS_STORAGE_KEY, HISTORICAL_DATA_KEY } from './CrowdDashboard/constants';
 import { useGPCFilter } from '../context/GPCFilterContext';
 import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
+import PerformanceMonitor from '../components/PerformanceMonitor/PerformanceMonitor';
 
 const CrowdDashboard = () => {
   const { user, logout } = useAuth();
-  const { getFilterParams } = useGPCFilter();
-  const gpcFilterParams = getFilterParams();
+  const { getFilterParams, gpcFilterEnabled, preferences } = useGPCFilter();
+  // Make gpcFilterParams reactive to preference changes
+  const gpcFilterParams = useMemo(() => getFilterParams(), [getFilterParams, preferences]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(false); // Don't block UI - show widgets immediately
@@ -156,6 +159,8 @@ const CrowdDashboard = () => {
     return [];
   });
   const [showTrendChart, setShowTrendChart] = useState({});
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
+  const [performanceData, setPerformanceData] = useState(null);
 
   // Use extracted data fetching hook
   const {
@@ -173,7 +178,8 @@ const CrowdDashboard = () => {
     fetchByContributorSource,
     fetchByContributorStatus,
     fetchByContributorType,
-    fetchAllData
+    fetchAllData,
+    getPerformanceMetrics
   } = useCrowdDashboardData(
     setMetrics,
     setKycStatus,
@@ -188,6 +194,14 @@ const CrowdDashboard = () => {
     setWidgetStates,
     gpcFilterParams
   );
+
+  // Reload data when GPC filter enabled state changes
+  useEffect(() => {
+    if (preferences?.gpcFilterEnabled !== undefined) {
+      // Reload all data when GPC filter is toggled
+      fetchAllData(true); // Silent reload
+    }
+  }, [preferences?.gpcFilterEnabled, fetchAllData]);
 
   // All fetch functions are now provided by useCrowdDashboardData hook
 
@@ -281,17 +295,29 @@ const CrowdDashboard = () => {
   // Ref to store demographics refresh function
   const demographicsRefreshRef = useRef(null);
 
-  // Tab-specific refresh handler
-  const handleRefresh = useCallback(() => {
-    if (activeTab === 'overview') {
-      handleOverviewRefresh();
-    } else if (activeTab === 'demographic-segmentation' && demographicsRefreshRef.current) {
+  // Debounced refresh handler to prevent rapid refresh clicks
+  const handleRefreshDebounced = useMemo(
+    () => debounce(() => {
+      if (refreshing) return;
       setRefreshing(true);
-      demographicsRefreshRef.current(false).finally(() => {
-        setTimeout(() => setRefreshing(false), 1000);
-      });
-    }
-  }, [activeTab, handleOverviewRefresh]);
+      if (activeTab === 'overview') {
+        // Clear cache for all crowd dashboard endpoints before refresh
+        import('../utils/requestCache').then(({ clearCachePattern }) => {
+          clearCachePattern('/crowd-dashboard');
+        });
+        handleOverviewRefresh();
+      } else if (activeTab === 'demographic-segmentation' && demographicsRefreshRef.current) {
+        demographicsRefreshRef.current(false).finally(() => {
+          setTimeout(() => setRefreshing(false), 1000);
+        });
+      }
+    }, 1000, { leading: true, trailing: false }), // 1 second debounce, execute immediately
+    [activeTab, handleOverviewRefresh, refreshing]
+  );
+
+  const handleRefresh = useCallback(() => {
+    handleRefreshDebounced();
+  }, [handleRefreshDebounced]);
 
   // Widget-level refresh handlers
   const handleWidgetRefresh = (widgetKey) => {
@@ -473,6 +499,9 @@ const CrowdDashboard = () => {
                   <p className="page-subtitle">View contributor metrics and analytics</p>
                 </div>
               </div>
+              <div className="header-right">
+                <GPCFilterToggle />
+              </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Crowd Dashboard" pageType="page" />
                 <UserProfileDropdown />
@@ -497,9 +526,6 @@ const CrowdDashboard = () => {
               </button>
             </div>
 
-            {/* GPC-Filter Toggle */}
-            <GPCFilterToggle />
-
             {/* Action Buttons */}
             <div className="dashboard-actions">
               {activeTab === 'overview' && (
@@ -520,6 +546,19 @@ const CrowdDashboard = () => {
               >
                 {refreshing ? <Loader size={16} className="spinning" /> : <RefreshCw size={16} />}
                 <span>Refresh All</span>
+              </button>
+              <button 
+                className="btn-action" 
+                onClick={() => {
+                  if (getPerformanceMetrics) {
+                    setPerformanceData(getPerformanceMetrics());
+                  }
+                  setShowPerformanceMonitor(true);
+                }}
+                title="View performance metrics and cache statistics"
+              >
+                <Settings size={16} />
+                <span>Performance</span>
               </button>
               {metrics.lastRefreshed && (
                 <span className="last-refreshed-text">
@@ -586,6 +625,13 @@ const CrowdDashboard = () => {
       <DrillDownModal
         drillDownData={drillDownData}
         onClose={() => setDrillDownData(null)}
+      />
+
+      {/* Performance Monitor */}
+      <PerformanceMonitor
+        isOpen={showPerformanceMonitor}
+        onClose={() => setShowPerformanceMonitor(false)}
+        performanceData={performanceData}
       />
     </div>
   );

@@ -83,52 +83,28 @@ const Administration = () => {
         marginLeft: `${sidebarWidth}px`,
         width: `calc(100% - ${sidebarWidth}px)`,
         transition: 'margin-left 0.3s ease, width 0.3s ease',
-        transition: 'margin-left 0.3s ease, width 0.3s ease',
         padding: '24px',
         backgroundColor: '#f5f5f5',
         minHeight: '100vh'
       }}>
-        <div className="page-header" style={{
-          backgroundColor: '#fff',
-          padding: '8px 24px',
-          borderRadius: '8px',
-          marginBottom: '24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <div className="header-left" style={{ display: 'flex', alignItems: 'center' }}>
-            <button 
-              className="header-menu-toggle"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              aria-label="Toggle sidebar"
-              style={{
-                marginRight: '12px',
-                padding: '4px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                transition: 'background-color 0.2s',
-                width: '32px',
-                height: '32px'
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f0f0'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-            >
-              <Menu size={20} style={{ color: '#002329' }} />
-            </button>
-            <div>
-              <h1 className="page-title" style={{ fontSize: '20px', marginBottom: '2px', lineHeight: '1.2' }}>Administration</h1>
-              <p className="page-subtitle" style={{ fontSize: '13px', lineHeight: '1.3' }}>Manage users, settings, and audit logs</p>
+        <div className="administration-header">
+          <div className="header-content">
+            <div className="header-left">
+              <button 
+                className="header-menu-toggle"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                aria-label="Toggle sidebar"
+              >
+                <Menu size={20} />
+              </button>
+              <div>
+                <h1 className="page-title">Administration</h1>
+                <p className="page-subtitle">Manage users, settings, and audit logs</p>
+              </div>
             </div>
-          </div>
-          <div className="header-user-profile">
-            <UserProfileDropdown />
+            <div className="header-user-profile">
+              <UserProfileDropdown />
+            </div>
           </div>
         </div>
 

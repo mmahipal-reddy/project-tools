@@ -12,6 +12,7 @@
 .workstream-reporting-header,
 .projects-header,
 .create-workstream-header,
+.administration-header,
 .global-header {
   background: var(--surface);
   border-bottom: 1px solid var(--border-color);
@@ -23,7 +24,9 @@
   box-shadow: none;
   width: 100%;
   box-sizing: border-box;
-  overflow: visible;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
 }
 
 /* Header content - consistent across all pages */
@@ -34,7 +37,11 @@
   justify-content: space-between;
   gap: var(--spacing-lg);
   box-sizing: border-box;
-  overflow: visible;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  position: relative;
+  z-index: 999999 !important;
 }
 
 /* Header left section */
@@ -94,19 +101,23 @@
   align-items: center;
   gap: var(--spacing-md);
   flex-shrink: 0;
-  overflow: visible;
+  overflow: visible !important;
   position: relative;
-  z-index: 99999;
+  z-index: 999999 !important;
   height: 40px;
+  max-height: 40px;
 }
 
 /* User Profile Dropdown - Global Styles */
 .user-profile-dropdown {
   position: relative;
   display: inline-block;
-  overflow: visible;
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
   height: 40px;
-  z-index: 99999;
+  max-height: 40px;
+  z-index: 999999 !important;
 }
 
 .user-avatar-button {
@@ -155,21 +166,19 @@
 }
 
 .user-profile-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  position: fixed !important;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 160px;
-  z-index: 99999;
-  overflow: visible;
+  z-index: 999999 !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+  overflow-x: visible !important;
   animation: slideDown 0.2s ease;
   white-space: nowrap;
   max-height: none;
-  overflow-y: visible;
-  overflow-x: visible;
 }
 
 @keyframes slideDown {
@@ -249,6 +258,70 @@
   text-overflow: ellipsis;
   max-width: 200px;
   font-family: Poppins;
+}
+
+/* Ensure header-right section doesn't have scrollbars and has high z-index */
+.header-right {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  position: relative;
+  z-index: 999999 !important;
+}
+
+/* Force overflow visible and high z-index on all header-user-profile instances across all pages */
+.header-user-profile,
+[class*="-header"] .header-user-profile,
+[class*="-container"] .header-user-profile,
+.case-management .header-user-profile,
+.client-tool-account .header-user-profile,
+.workstream-reporting .header-user-profile,
+.project-roster-funnel-container .header-user-profile,
+.case-analytics-header .header-user-profile,
+.queue-status-management .header-user-profile,
+.create-workstream .header-user-profile,
+.update-object-fields-header .header-user-profile,
+.active-contributors-by-project-container .header-user-profile,
+.active-contributors-by-qual-step-container .header-user-profile,
+.onboarding-contributors-container .header-user-profile,
+.po-pay-rates-container .header-user-profile,
+.po-productivity-targets-container .header-user-profile,
+.mfa-verification-logs-container .header-user-profile,
+.contributor-match-matrix-container .header-user-profile,
+.contributor-payments-dashboard .header-user-profile,
+.contributor-time-status-dashboard .header-user-profile,
+.project-performance .header-user-profile {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  max-height: 40px !important;
+  z-index: 999999 !important;
+  position: relative !important;
+}
+
+/* Ensure dropdown menu has highest z-index on all pages */
+.user-profile-dropdown-menu,
+[class*="-header"] .user-profile-dropdown-menu,
+[class*="-container"] .user-profile-dropdown-menu,
+.case-management .user-profile-dropdown-menu,
+.client-tool-account .user-profile-dropdown-menu,
+.workstream-reporting .user-profile-dropdown-menu,
+.project-roster-funnel-container .user-profile-dropdown-menu,
+.case-analytics-header .user-profile-dropdown-menu,
+.queue-status-management .user-profile-dropdown-menu,
+.create-workstream .user-profile-dropdown-menu,
+.update-object-fields-header .user-profile-dropdown-menu,
+.active-contributors-by-project-container .user-profile-dropdown-menu,
+.active-contributors-by-qual-step-container .user-profile-dropdown-menu,
+.onboarding-contributors-container .user-profile-dropdown-menu,
+.po-pay-rates-container .user-profile-dropdown-menu,
+.po-productivity-targets-container .user-profile-dropdown-menu,
+.mfa-verification-logs-container .user-profile-dropdown-menu,
+.contributor-match-matrix-container .user-profile-dropdown-menu,
+.contributor-payments-dashboard .user-profile-dropdown-menu,
+.contributor-time-status-dashboard .user-profile-dropdown-menu,
+.project-performance .user-profile-dropdown-menu {
+  z-index: 999999 !important;
 }
 
 /* User info container */

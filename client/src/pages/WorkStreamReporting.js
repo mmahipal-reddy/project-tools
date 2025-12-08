@@ -891,7 +891,6 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
 
   const content = (
     <>
-      {!hideHeader && <GPCFilterToggle />}
       <div className="workstream-reporting-content">
           {/* Stale Data Warning */}
           {dataStale && (
@@ -1682,6 +1681,9 @@ const WorkStreamReporting = ({ hideHeader = false }) => {
                     View workstream summary and associated project objectives
                   </p>
                 </div>
+              </div>
+              <div className="header-right">
+                <GPCFilterToggle />
               </div>
               <div className="header-user-profile">
                 <UserProfileDropdown />

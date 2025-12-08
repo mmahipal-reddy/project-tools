@@ -11,6 +11,11 @@ const GPCFilterToggle = () => {
     return null;
   }
 
+  // Don't show if user has disabled GPC filtering
+  if (preferences.gpcFilterEnabled === false) {
+    return null;
+  }
+
   // Don't show if no preferences are set
   if (!preferences.interestedAccounts.length && !preferences.interestedProjects.length) {
     return null;

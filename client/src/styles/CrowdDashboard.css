@@ -292,6 +292,20 @@
   margin-top: 8px;
 }
 
+/* Interactive chart styling */
+.recharts-bar,
+.recharts-bar-rectangle,
+.recharts-cell {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.recharts-bar:hover,
+.recharts-bar-rectangle:hover,
+.recharts-cell:hover {
+  opacity: 0.8;
+}
+
 /* Chart Cards - Scoped to Crowd Dashboard only */
 .crowd-dashboard .chart-card {
   background: var(--surface);

@@ -136,6 +136,11 @@ router.get('/by-project', authenticate, authorize('view_project', 'all'), asyncH
     const startTime = Date.now();
     logMetrics('=== FETCHING ACTIVE CONTRIBUTORS BY PROJECT (FAST OPTIMIZED) ===');
     
+    // Pagination support
+    const limit = parseInt(req.query.limit) || 10000; // Default limit
+    const offset = parseInt(req.query.offset) || 0;
+    const maxRecords = Math.min(limit, 50000); // Cap at 50k for performance
+    
     // Discover field names
     const { discoverContactProjectFields } = require('./utils');
     const fields = await discoverContactProjectFields(conn);
@@ -200,18 +205,34 @@ router.get('/by-project', authenticate, authorize('view_project', 'all'), asyncH
     }
     
     // Convert to array and sort in descending order (highest count first)
-    const projectData = Array.from(projectContributorMap.entries())
+    let projectData = Array.from(projectContributorMap.entries())
       .map(([projectName, contributorSet]) => ({ 
         projectName, 
         count: contributorSet.size 
       }))
       .sort((a, b) => b.count - a.count); // Descending order - largest to smallest
 
+    // Apply pagination
+    const totalCount = projectData.length;
+    const paginatedData = projectData.slice(offset, offset + maxRecords);
+    const hasMore = offset + maxRecords < totalCount;
+
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    logMetrics(`✓ Completed in ${elapsed}s: ${projectData.length} projects, ${totalRecordsProcessed} records processed`);
-    logMetrics(`Top 10 projects: ${projectData.slice(0, 10).map(p => `${p.projectName} (${p.count})`).join(', ')}`);
+    logMetrics(`✓ Completed in ${elapsed}s: ${totalCount} projects, ${totalRecordsProcessed} records processed`);
+    logMetrics(`Top 10 projects: ${paginatedData.slice(0, 10).map(p => `${p.projectName} (${p.count})`).join(', ')}`);
     
-    return res.json({ byProject: projectData });
+    return res.json({ 
+      byProject: paginatedData,
+      _metadata: {
+        totalRecordsProcessed,
+        uniqueProjects: totalCount,
+        returned: paginatedData.length,
+        offset,
+        limit: maxRecords,
+        hasMore,
+        elapsed: `${elapsed}s`
+      }
+    });
   } catch (error) {
     logMetrics('Error fetching contributors by project:', { error: error.message, stack: error.stack });
     console.error('[Crowd Dashboard] Error fetching by project:', error.message, error.stack);

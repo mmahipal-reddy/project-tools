@@ -21,7 +21,7 @@ import '../styles/GlobalHeader.css';
 
 const QueueStatusManagement = () => {
   const { user, logout } = useAuth();
-  const { getFilterParams } = useGPCFilter();
+  const { getFilterParams, preferences } = useGPCFilter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [loading, setLoading] = useState(true);
@@ -250,6 +250,14 @@ const QueueStatusManagement = () => {
         setLoadingMore(false);
       });
   }, [getFilterParams]);
+
+  // Reload data when GPC filter enabled state changes
+  useEffect(() => {
+    if (preferences?.gpcFilterEnabled !== undefined) {
+      // Reload projects when GPC filter is toggled
+      loadMoreProjects(true, 0); // Reset and reload from beginning
+    }
+  }, [preferences?.gpcFilterEnabled]);
 
   // Set up IntersectionObserver for infinite scroll
   useEffect(() => {

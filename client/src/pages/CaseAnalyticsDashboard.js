@@ -817,15 +817,15 @@ const CaseAnalyticsDashboard = () => {
                   <p className="page-subtitle">View case metrics and analytics</p>
                 </div>
               </div>
+              <div className="header-right">
+                <GPCFilterToggle />
+              </div>
               <div className="header-user-profile">
                 <BookmarkButton pageName="Case Analytics Dashboard" pageType="page" />
                 <UserProfileDropdown />
               </div>
             </div>
           </div>
-
-          {/* GPC-Filter Toggle */}
-          <GPCFilterToggle />
 
           <div className="case-analytics-content">
             {/* Tabs */}

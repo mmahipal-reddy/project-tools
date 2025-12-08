@@ -14,6 +14,7 @@ export const useGPCFilter = () => {
 
 export const GPCFilterProvider = ({ children }) => {
   const [preferences, setPreferences] = useState({
+    gpcFilterEnabled: true, // Default to enabled
     interestedAccounts: [],
     interestedProjects: []
   });
@@ -56,6 +57,7 @@ export const GPCFilterProvider = ({ children }) => {
       });
       
       setPreferences({
+        gpcFilterEnabled: response.data.gpcFilterEnabled !== undefined ? response.data.gpcFilterEnabled : true, // Default to enabled
         interestedAccounts: accounts,
         interestedProjects: projects
       });
@@ -63,6 +65,7 @@ export const GPCFilterProvider = ({ children }) => {
       console.error('Error loading GPC-Filter preferences:', error);
       // Don't show error - user might not have preferences yet
       setPreferences({
+        gpcFilterEnabled: true, // Default to enabled
         interestedAccounts: [],
         interestedProjects: []
       });
@@ -103,6 +106,7 @@ export const GPCFilterProvider = ({ children }) => {
   // Check if filter should be applied
   const shouldApplyFilter = useCallback(() => {
     if (!ENABLE_GPC_FILTER) return false;
+    if (preferences.gpcFilterEnabled === false) return false; // User has disabled GPC filter
     if (override) return false; // Override is active
     if (!preferences.interestedAccounts.length && !preferences.interestedProjects.length) {
       return false; // No preferences set
@@ -153,7 +157,9 @@ export const GPCFilterProvider = ({ children }) => {
     clearOverride,
     refreshPreferences,
     shouldApplyFilter,
-    getFilterParams
+    getFilterParams,
+    // Expose preferences.gpcFilterEnabled directly for easier watching
+    gpcFilterEnabled: preferences.gpcFilterEnabled
   };
 
   return (

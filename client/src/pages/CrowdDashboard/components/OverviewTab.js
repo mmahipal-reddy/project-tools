@@ -605,7 +605,17 @@ const OverviewTab = ({
                                     radius={[0, 4, 4, 0]}
                                     isAnimationActive={false}
                                     minPointSize={2}
-                                  />
+                                  >
+                                    {visibleData.map((entry, index) => (
+                                      <Cell
+                                        key={`cell-${index}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                      />
+                                    ))}
+                                  </Bar>
                                 ))
                               ) : (
                                 // Fallback: show total if no language breakdown
@@ -793,6 +803,7 @@ const OverviewTab = ({
                           data={displayData}
                           layout="vertical"
                           margin={{ top: 10, right: 30, left: 0, bottom: 30 }}
+                          onClick={(data) => handleChartClick(data, 'bySource')}
                           throttleDelay={100}
                           isAnimationActive={false}
                         >
@@ -872,7 +883,7 @@ const OverviewTab = ({
                 {renderWidgetStatusWithState('byContributorSource')}
                 <div className="chart-container">
                   {(() => {
-                    const filteredData = byContributorSource && byContributorSource.length > 0 ? byContributorSource : [];
+                    const filteredData = applyFilters(byContributorSource, 'byContributorSource');
                     const hasData = filteredData.length > 0;
                     
                     if (!hasData && !widgetStates.byContributorSource?.loading) {
@@ -896,6 +907,7 @@ const OverviewTab = ({
                             data={displayData}
                             layout="vertical"
                             margin={{ top: 10, right: 30, left: 0, bottom: 30 }}
+                            onClick={(data) => handleChartClick(data, 'byContributorSource')}
                             throttleDelay={100}
                             isAnimationActive={false}
                           >
@@ -978,7 +990,7 @@ const OverviewTab = ({
                 {renderWidgetStatusWithState('byContributorStatus')}
                 <div className="chart-container">
                   {(() => {
-                    const filteredData = byContributorStatus && byContributorStatus.length > 0 ? byContributorStatus : [];
+                    const filteredData = applyFilters(byContributorStatus, 'byContributorStatus');
                     const hasData = filteredData.length > 0;
                     
                     if (!hasData && !widgetStates.byContributorStatus?.loading) {
@@ -1001,6 +1013,7 @@ const OverviewTab = ({
                             data={displayData}
                             layout="vertical"
                             margin={{ top: 10, right: 30, left: 0, bottom: 30 }}
+                            onClick={(data) => handleChartClick(data, 'byContributorStatus')}
                             throttleDelay={100}
                             isAnimationActive={false}
                           >
@@ -1080,7 +1093,7 @@ const OverviewTab = ({
                 {renderWidgetStatusWithState('byContributorType')}
                 <div className="chart-container">
                   {(() => {
-                    const filteredData = byContributorType && byContributorType.length > 0 ? byContributorType : [];
+                    const filteredData = applyFilters(byContributorType, 'byContributorType');
                     const hasData = filteredData.length > 0;
                     
                     if (!hasData && !widgetStates.byContributorType?.loading) {
@@ -1103,6 +1116,7 @@ const OverviewTab = ({
                             data={displayData}
                             layout="vertical"
                             margin={{ top: 10, right: 30, left: 0, bottom: 30 }}
+                            onClick={(data) => handleChartClick(data, 'byContributorType')}
                             throttleDelay={100}
                             isAnimationActive={false}
                           >

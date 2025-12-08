@@ -774,6 +774,7 @@ const PMApprovals = () => {
                 </div>
               </div>
               <div className="header-right">
+                <GPCFilterToggle />
                 <BookmarkButton />
                 <button
                   className="refresh-btn"
@@ -783,15 +784,12 @@ const PMApprovals = () => {
                 >
                   <RefreshCw size={18} className={refreshing ? 'spinning' : ''} />
                 </button>
-                <div className="header-user-profile">
-                  <UserProfileDropdown />
-                </div>
+              </div>
+              <div className="header-user-profile">
+                <UserProfileDropdown />
               </div>
             </div>
           </div>
-
-          {/* GPC-Filter Toggle */}
-          <GPCFilterToggle />
 
           {/* Main Content */}
           <div className="pm-approvals-content">

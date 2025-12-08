@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +10,9 @@ const UserProfileDropdown = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
 
   // Get user initials from name
   const getUserInitials = () => {
@@ -29,20 +33,54 @@ const UserProfileDropdown = () => {
     }
   };
 
+  // Calculate menu position when dropdown opens
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const updatePosition = () => {
+        if (buttonRef.current) {
+          const rect = buttonRef.current.getBoundingClientRect();
+          // Use viewport coordinates for fixed positioning
+          setMenuPosition({
+            top: rect.bottom + 8,
+            right: window.innerWidth - rect.right
+          });
+        }
+      };
+
+      updatePosition();
+      // Update position on scroll and resize
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(event.target)
+      ) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use capture phase to catch clicks before they bubble
+      document.addEventListener('mousedown', handleClickOutside, true);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
     };
   }, [isOpen]);
 
@@ -57,20 +95,32 @@ const UserProfileDropdown = () => {
   };
 
   return (
-    <div className="user-profile-dropdown" ref={dropdownRef}>
-      <button
-        className="user-avatar-button"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label="User menu"
-        aria-expanded={isOpen}
-      >
-        <div className="user-avatar">
-          {getUserInitials()}
-        </div>
-      </button>
+    <>
+      <div className="user-profile-dropdown" ref={dropdownRef}>
+        <button
+          ref={buttonRef}
+          className="user-avatar-button"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="User menu"
+          aria-expanded={isOpen}
+        >
+          <div className="user-avatar">
+            {getUserInitials()}
+          </div>
+        </button>
+      </div>
       
-      {isOpen && (
-        <div className="user-profile-dropdown-menu">
+      {isOpen && createPortal(
+        <div 
+          ref={menuRef}
+          className="user-profile-dropdown-menu"
+          style={{
+            position: 'fixed',
+            top: `${menuPosition.top}px`,
+            right: `${menuPosition.right}px`,
+            zIndex: 999999
+          }}
+        >
           <button
             className="dropdown-menu-item"
             onClick={handleProfileClick}
@@ -85,9 +135,10 @@ const UserProfileDropdown = () => {
             <LogOut size={16} />
             <span>Logout</span>
           </button>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 };
 

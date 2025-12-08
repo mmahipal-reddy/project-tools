@@ -352,13 +352,14 @@ router.get('/by-source', authenticate, authorize('view_project', 'all'), asyncHa
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  req.setTimeout(600000);
+  req.setTimeout(180000); // Reduced from 10min to 3min
+  res.setTimeout(180000);
   res.setHeader('Connection', 'keep-alive');
   
   try {
     const conn = await getSalesforceConnection();
     const startTime = Date.now();
-    const MAX_EXECUTION_TIME = 540000;
+    const MAX_EXECUTION_TIME = 150000; // Reduced from 9min to 2.5min
     
     const checkTimeout = () => {
       const elapsed = Date.now() - startTime;
@@ -581,13 +582,14 @@ router.get('/by-contributor-source', authenticate, authorize('view_project', 'al
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  req.setTimeout(600000);
+  req.setTimeout(180000); // Reduced from 10min to 3min
+  res.setTimeout(180000);
   res.setHeader('Connection', 'keep-alive');
   
   try {
     const conn = await getSalesforceConnection();
     const startTime = Date.now();
-    const MAX_EXECUTION_TIME = 540000;
+    const MAX_EXECUTION_TIME = 150000; // Reduced from 9min to 2.5min
     
     const checkTimeout = () => {
       const elapsed = Date.now() - startTime;
@@ -804,13 +806,14 @@ router.get('/by-contributor-status', authenticate, authorize('view_project', 'al
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  req.setTimeout(600000);
+  req.setTimeout(180000); // Reduced from 10min to 3min
+  res.setTimeout(180000);
   res.setHeader('Connection', 'keep-alive');
   
   try {
     const conn = await getSalesforceConnection();
     const startTime = Date.now();
-    const MAX_EXECUTION_TIME = 540000;
+    const MAX_EXECUTION_TIME = 150000; // Reduced from 9min to 2.5min
     
     const checkTimeout = () => {
       const elapsed = Date.now() - startTime;
@@ -978,13 +981,14 @@ router.get('/by-contributor-type', authenticate, authorize('view_project', 'all'
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  req.setTimeout(600000);
+  req.setTimeout(180000); // Reduced from 10min to 3min
+  res.setTimeout(180000);
   res.setHeader('Connection', 'keep-alive');
   
   try {
     const conn = await getSalesforceConnection();
     const startTime = Date.now();
-    const MAX_EXECUTION_TIME = 540000;
+    const MAX_EXECUTION_TIME = 150000; // Reduced from 9min to 2.5min
     
     const checkTimeout = () => {
       const elapsed = Date.now() - startTime;

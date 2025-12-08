@@ -60,6 +60,7 @@ const saveUserPreference = (userId, preferences) => {
   
   const preferenceData = {
     userId,
+    gpcFilterEnabled: preferences.gpcFilterEnabled !== undefined ? preferences.gpcFilterEnabled : true, // Default to enabled
     interestedAccounts: preferences.interestedAccounts || [],
     interestedProjects: preferences.interestedProjects || [],
     updatedAt: new Date().toISOString(),

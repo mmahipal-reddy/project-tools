@@ -10,7 +10,7 @@ const { getScheduleRules, getEnabledRules } = require('./queueStatusManagement/s
 const { executeScheduledUpdates } = require('./queueStatusManagement/scheduler');
 const { getExecutionHistory } = require('./queueStatusManagement/executionHistory');
 const { getSchedulerStatus } = require('../services/queueStatusScheduler');
-const { generateDashboardData, getProjectsByStatus, calculateTimeInQueue } = require('../utils/queueStatusAnalytics');
+const { calculateTimeInQueue } = require('../utils/queueStatusAnalytics');
 const { 
   loadRules, 
   createRule, 
@@ -754,55 +754,348 @@ router.get('/analytics/dashboard', authenticate, authorize('view_project', 'all'
     const conn = await getSalesforceConnection();
     console.log('[Analytics] Connection established, time elapsed:', Date.now() - startTime, 'ms');
     
-    // OPTIMIZED: Fetch only necessary fields
-    const projects = [];
+    // FIXED: Use aggregate query to get accurate counts by Queue_Status__c
+    // This includes null values and is much more efficient than fetching all records
     
-    // First, get the total count without fetching all records
-    const countQuery = `SELECT COUNT() FROM Contributor_Project__c WHERE Queue_Status__c != null`;
-    const countResult = await conn.query(countQuery);
-    const totalCount = countResult.totalSize || 0;
+    // Step 1: Get total count of ALL Contributor_Project__c records (regardless of Status__c)
+    // NOTE: This counts Contributor_Project__c records, not Project__c records
+    // One Project__c can have many Contributor_Project__c records, each with its own Queue_Status__c
+    // Exclude only Removed and Closed status projects
+    let baseWhereClause = "(Status__c = null OR (Status__c != 'Removed' AND Status__c != 'Closed'))";
     
-    // Fetch projects with reasonable limit for processing - use larger batches
-    // Remove ORDER BY to speed up query
-    const query = `SELECT Id, Name, Queue_Status__c, Status__c, LastModifiedDate FROM Contributor_Project__c WHERE Queue_Status__c != null LIMIT 5000`;
+    // Apply GPC-Filter if enabled (filter by Project through relationship)
+    const { applyGPCFilterToWhereClause } = require('../utils/gpcFilterQueryBuilder');
+    baseWhereClause = applyGPCFilterToWhereClause(baseWhereClause, req, { 
+      accountField: 'Project__r.Account__c', 
+      projectField: 'Project__c' 
+    });
     
-    console.log('[Analytics] Executing query...');
-    const queryPromise = conn.query(query);
-    const queryTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Query timeout after 20 seconds')), 20000)
+    const totalCountQuery = `SELECT COUNT() FROM Contributor_Project__c WHERE ${baseWhereClause}`;
+    console.log('[Analytics] Getting total count of ALL Contributor_Project__c records (excluding Removed/Closed)...');
+    console.log('[Analytics] Total count query:', totalCountQuery);
+    const totalCountResult = await conn.query(totalCountQuery);
+    const totalCount = totalCountResult.totalSize || 0;
+    console.log('[Analytics] Total Contributor_Project__c records (all statuses):', totalCount);
+    
+    // Step 2: Get count by Queue_Status__c using GROUP BY (much more efficient)
+    // This query groups by Queue_Status__c and counts records in each group
+    // Includes ALL Contributor Projects (excluding only Removed and Closed status)
+    // NOTE: If GPC filters use relationship fields (Project__r.Account__c), we need to handle them differently
+    // For GROUP BY queries, we may need to use a subquery or filter differently
+    let statusCountWhereClause = "(Status__c = null OR (Status__c != 'Removed' AND Status__c != 'Closed'))";
+    
+    // Check if GPC filters are being applied and if they use relationship fields
+    const gpcAccounts = req.query.gpcInterestedAccounts || req.query.gpc_accounts;
+    const gpcProjects = req.query.gpcInterestedProjects || req.query.gpc_projects;
+    
+    // If GPC filters are using projects, we can use Project__c directly (no relationship needed)
+    if (gpcProjects) {
+      const projectIds = gpcProjects.split(',').filter(id => {
+        const trimmed = id.trim();
+        return /^[a-zA-Z0-9]{15,18}$/.test(trimmed);
+      });
+      if (projectIds.length > 0) {
+        const escapedProjectIds = projectIds.map(id => `'${id.trim()}'`).join(', ');
+        statusCountWhereClause += ` AND Project__c IN (${escapedProjectIds})`;
+      }
+    }
+    
+    // If GPC filters are using accounts, we need to handle the relationship
+    // For GROUP BY, we'll need to use a subquery or filter by Project__c after getting project IDs
+    if (gpcAccounts && !gpcProjects) {
+      const accountIds = gpcAccounts.split(',').filter(id => {
+        const trimmed = id.trim();
+        return /^[a-zA-Z0-9]{15,18}$/.test(trimmed);
+      });
+      if (accountIds.length > 0) {
+        try {
+          // Get Project IDs for these accounts first
+          const escapedAccountIds = accountIds.map(id => `'${id.trim()}'`).join(', ');
+          const projectsQuery = `SELECT Id FROM Project__c WHERE Account__c IN (${escapedAccountIds}) LIMIT 10000`;
+          const projectsResult = await conn.query(projectsQuery);
+          const projectIds = (projectsResult.records || []).map(p => p.Id);
+          if (projectIds.length > 0) {
+            const escapedProjectIds = projectIds.map(id => `'${id}'`).join(', ');
+            statusCountWhereClause += ` AND Project__c IN (${escapedProjectIds})`;
+          } else {
+            // No projects for these accounts, return empty
+            console.log('[Analytics] No projects found for GPC account filter, returning empty results');
+            return res.json({
+              success: true,
+              data: {
+                projectsByStatus: {
+                  'Calibration Queue': 0,
+                  'Production Queue': 0,
+                  'Test Queue': 0,
+                  '--None--': 0,
+                  total: 0
+                },
+                timeInQueue: {},
+                changeFrequency: { totalChanges: 0, byStatus: {}, topTransitions: [] }
+              },
+              recordCount: 0,
+              totalCount: 0
+            });
+          }
+        } catch (error) {
+          console.error('[Analytics] Error fetching projects for GPC account filter:', error);
+          // Continue without account filter if there's an error
+        }
+      }
+    }
+    
+    const statusCountQuery = `
+      SELECT 
+        Queue_Status__c queueStatus,
+        COUNT(Id) RecordCount
+      FROM Contributor_Project__c
+      WHERE ${statusCountWhereClause}
+      GROUP BY Queue_Status__c
+      LIMIT 50
+    `;
+    
+    console.log('[Analytics] Executing GROUP BY query for status counts...');
+    console.log('[Analytics] Query:', statusCountQuery);
+    console.log('[Analytics] GPC Filters - Accounts:', gpcAccounts || 'none', 'Projects:', gpcProjects || 'none');
+    const statusCountPromise = conn.query(statusCountQuery);
+    const statusCountTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Status count query timeout after 30 seconds')), 30000)
     );
     
-    const queryResult = await Promise.race([queryPromise, queryTimeout]);
-    console.log('[Analytics] Query completed, records:', queryResult.records?.length || 0, 'time elapsed:', Date.now() - startTime, 'ms');
+    const statusCountResult = await Promise.race([statusCountPromise, statusCountTimeout]);
+    console.log('[Analytics] Status count query completed, groups:', statusCountResult.records?.length || 0, 'time elapsed:', Date.now() - startTime, 'ms');
+    console.log('[Analytics] Raw GROUP BY results:', JSON.stringify(statusCountResult.records || [], null, 2));
     
-    if (queryResult.records) {
-      projects.push(...queryResult.records.map(r => ({
-        id: r.Id,
-        name: r.Name,
-        queueStatus: r.Queue_Status__c,
-        status: r.Status__c,
-        lastModifiedDate: r.LastModifiedDate
-      })));
+    // Build projectsByStatus object from GROUP BY results
+    const projectsByStatus = {
+      'Calibration Queue': 0,
+      'Production Queue': 0,
+      'Test Queue': 0,
+      '--None--': 0,
+      total: 0 // Will be calculated from sum of status counts
+    };
+    
+    if (statusCountResult.records) {
+      statusCountResult.records.forEach(record => {
+        const status = record.queueStatus || '--None--';
+        const count = record.RecordCount || 0;
+        
+        if (projectsByStatus.hasOwnProperty(status)) {
+          projectsByStatus[status] = count;
+        } else {
+          // Handle unexpected status values
+          console.warn(`[Analytics] Unexpected Queue_Status__c value: "${status}"`);
+          projectsByStatus['--None--'] += count;
+        }
+      });
     }
-
-    console.log('[Analytics] Processing', projects.length, 'projects...');
     
-    // Get status change dates (using LastModifiedDate as proxy)
+    // Calculate total from sum of all status counts (this ensures accuracy)
+    const calculatedTotal = projectsByStatus['Calibration Queue'] + 
+                            projectsByStatus['Production Queue'] + 
+                            projectsByStatus['Test Queue'] + 
+                            projectsByStatus['--None--'];
+    projectsByStatus.total = calculatedTotal;
+    
+    console.log('[Analytics] Status counts breakdown:', {
+      'Calibration Queue': projectsByStatus['Calibration Queue'],
+      'Production Queue': projectsByStatus['Production Queue'],
+      'Test Queue': projectsByStatus['Test Queue'],
+      '--None--': projectsByStatus['--None--'],
+      'Total (sum)': calculatedTotal,
+      'Total (from COUNT query)': totalCount
+    });
+    
+    // If there's a discrepancy, log it but use the calculated total (from GROUP BY) as it's more accurate
+    if (calculatedTotal !== totalCount) {
+      console.warn(`[Analytics] Total count mismatch: GROUP BY sum (${calculatedTotal}) vs COUNT query (${totalCount}). Using GROUP BY sum.`);
+    }
+    
+    // Step 3: Fetch a sample of projects for time-in-queue calculations (only need projects with Queue_Status__c)
+    // Limit to 1000 for performance
+    // Includes ALL Contributor Projects (excluding only Removed and Closed status)
+    // Use the same WHERE clause as the GROUP BY query to ensure consistency
+    let sampleWhereClause = `Queue_Status__c != null AND ${statusCountWhereClause}`;
+    const sampleQuery = `SELECT Id, Name, Queue_Status__c, Status__c, LastModifiedDate 
+                         FROM Contributor_Project__c 
+                         WHERE ${sampleWhereClause}
+                         LIMIT 1000`;
+    
+    console.log('[Analytics] Fetching sample projects for time-in-queue metrics...');
+    console.log('[Analytics] Sample query:', sampleQuery);
+    const samplePromise = conn.query(sampleQuery);
+    const sampleTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Sample query timeout after 20 seconds')), 20000)
+    );
+    
+    const sampleResult = await Promise.race([samplePromise, sampleTimeout]);
+    const projects = (sampleResult.records || []).map(r => ({
+      id: r.Id,
+      name: r.Name,
+      queueStatus: r.Queue_Status__c,
+      status: r.Status__c,
+      lastModifiedDate: r.LastModifiedDate
+    }));
+    
+    console.log('[Analytics] Sample projects fetched:', projects.length, 'time elapsed:', Date.now() - startTime, 'ms');
+    
+    // Get status change dates (using LastModifiedDate as proxy for when Queue_Status__c was last modified)
+    // For more accurate time-in-queue, we should ideally use Queue_Status__History, but LastModifiedDate is a reasonable proxy
     const statusDates = {};
     projects.forEach(project => {
       statusDates[project.id] = project.lastModifiedDate;
     });
 
-    // Generate dashboard data
+    // Calculate time-in-queue metrics from sample
+    const timeInQueueFromSample = calculateTimeInQueue(projects, statusDates);
+    
+    // Merge sample-based averages with actual counts from projectsByStatus
+    // This ensures counts are accurate while averages are calculated from a representative sample
+    const timeInQueue = {
+      'Calibration Queue': {
+        count: projectsByStatus['Calibration Queue'],
+        averageDays: timeInQueueFromSample['Calibration Queue'].averageDays,
+        minDays: timeInQueueFromSample['Calibration Queue'].minDays === Infinity ? 0 : timeInQueueFromSample['Calibration Queue'].minDays,
+        maxDays: timeInQueueFromSample['Calibration Queue'].maxDays
+      },
+      'Production Queue': {
+        count: projectsByStatus['Production Queue'],
+        averageDays: timeInQueueFromSample['Production Queue'].averageDays,
+        minDays: timeInQueueFromSample['Production Queue'].minDays === Infinity ? 0 : timeInQueueFromSample['Production Queue'].minDays,
+        maxDays: timeInQueueFromSample['Production Queue'].maxDays
+      },
+      'Test Queue': {
+        count: projectsByStatus['Test Queue'],
+        averageDays: timeInQueueFromSample['Test Queue'].averageDays,
+        minDays: timeInQueueFromSample['Test Queue'].minDays === Infinity ? 0 : timeInQueueFromSample['Test Queue'].minDays,
+        maxDays: timeInQueueFromSample['Test Queue'].maxDays
+      },
+      '--None--': {
+        count: projectsByStatus['--None--'],
+        averageDays: timeInQueueFromSample['--None--'].averageDays,
+        minDays: timeInQueueFromSample['--None--'].minDays === Infinity ? 0 : timeInQueueFromSample['--None--'].minDays,
+        maxDays: timeInQueueFromSample['--None--'].maxDays
+      }
+    };
+
+    // Fetch status change history for last 30 days
+    // Query for projects that had Queue_Status__c modified in the last 30 days
+    console.log('[Analytics] Fetching status change history for last 30 days...');
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Format date for Salesforce SOQL: YYYY-MM-DDTHH:mm:ssZ
+    const year = thirtyDaysAgo.getUTCFullYear();
+    const month = String(thirtyDaysAgo.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(thirtyDaysAgo.getUTCDate()).padStart(2, '0');
+    const hours = String(thirtyDaysAgo.getUTCHours()).padStart(2, '0');
+    const minutes = String(thirtyDaysAgo.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(thirtyDaysAgo.getUTCSeconds()).padStart(2, '0');
+    const thirtyDaysAgoSOQL = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`;
+    
+    // Try to query field history if available, otherwise use LastModifiedDate as proxy
+    let statusHistory = {
+      totalChanges: 0,
+      byStatus: {},
+      byDay: {},
+      topTransitions: []
+    };
+    
+    try {
+      // Query for projects that had Queue_Status__c modified in the last 30 days
+      // Using LastModifiedDate as proxy for when Queue_Status__c was changed
+      // Includes ALL Contributor Projects (excluding only Removed and Closed status)
+      const historyQuery = `SELECT Id, Queue_Status__c, LastModifiedDate, Status__c 
+                            FROM Contributor_Project__c 
+                            WHERE LastModifiedDate >= ${thirtyDaysAgoSOQL}
+                              AND ${statusCountWhereClause}
+                            ORDER BY LastModifiedDate DESC
+                            LIMIT 5000`;
+      
+      console.log('[Analytics] History query:', historyQuery);
+      const historyPromise = conn.query(historyQuery);
+      const historyTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('History query timeout after 30 seconds')), 30000)
+      );
+      
+      const historyResult = await Promise.race([historyPromise, historyTimeout]);
+      const historyProjects = (historyResult.records || []).map(r => ({
+        id: r.Id,
+        queueStatus: r.Queue_Status__c,
+        lastModifiedDate: r.LastModifiedDate,
+        status: r.Status__c
+      }));
+      
+      console.log('[Analytics] History projects fetched:', historyProjects.length);
+      
+      // Group by date and status to count changes
+      const changesByDate = {};
+      const changesByStatus = {};
+      
+      historyProjects.forEach(project => {
+        const dateKey = new Date(project.lastModifiedDate).toISOString().split('T')[0];
+        const status = project.queueStatus || '--None--';
+        
+        // Count changes by date
+        changesByDate[dateKey] = (changesByDate[dateKey] || 0) + 1;
+        
+        // Count changes by status (current status after change)
+        changesByStatus[status] = (changesByStatus[status] || 0) + 1;
+      });
+      
+      // Calculate top transitions (simplified - using current status as "to" status)
+      // Note: Without field history, we can't track actual "from -> to" transitions
+      // This is an approximation based on current status after modification
+      const topTransitions = Object.entries(changesByStatus)
+        .map(([status, count]) => ({
+          transition: `Changed to ${status}`,
+          count: count
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+      
+      statusHistory = {
+        totalChanges: historyProjects.length,
+        byStatus: changesByStatus,
+        byDay: changesByDate,
+        topTransitions: topTransitions
+      };
+      
+      console.log('[Analytics] Status change history calculated:', {
+        totalChanges: statusHistory.totalChanges,
+        statuses: Object.keys(changesByStatus).length,
+        topTransitions: topTransitions.length
+      });
+    } catch (error) {
+      console.error('[Analytics] Error fetching status change history:', error);
+      // Fallback to empty history - don't throw, just log
+    }
+
+    // Generate dashboard data with accurate counts
     console.log('[Analytics] Generating dashboard data...');
-    const dashboardData = generateDashboardData(projects, statusDates, [], totalCount);
+    const dashboardData = {
+      projectsByStatus: projectsByStatus,
+      timeInQueue: timeInQueue,
+      changeFrequency: {
+        totalChanges: statusHistory.totalChanges || 0,
+        byStatus: statusHistory.byStatus || {},
+        topTransitions: statusHistory.topTransitions || []
+      }
+    };
     console.log('[Analytics] Dashboard data generated, time elapsed:', Date.now() - startTime, 'ms');
+    console.log('[Analytics] Projects by Status:', JSON.stringify(projectsByStatus, null, 2));
 
     res.json({
       success: true,
       data: dashboardData,
       recordCount: projects.length,
-      totalCount: totalCount
+      totalCount: totalCount,
+      _metadata: {
+        gpcFiltersApplied: !!(gpcAccounts || gpcProjects),
+        gpcAccounts: gpcAccounts || null,
+        gpcProjects: gpcProjects || null,
+        statusFilter: "All statuses (excluding Removed/Closed)",
+        queryUsed: statusCountQuery
+      }
     });
   } catch (error) {
     console.error('[Analytics] Error fetching dashboard data:', error);
@@ -829,9 +1122,11 @@ router.get('/analytics/time-in-queue', authenticate, authorize('view_project', '
     const conn = await getSalesforceConnection();
     const { status } = req.query; // Optional status filter
     
-    let query = `SELECT Id, Name, Queue_Status__c, LastModifiedDate FROM Contributor_Project__c WHERE Queue_Status__c != null`;
+    // Include ALL Contributor Projects (excluding only Removed and Closed status)
+    const statusFilter = "(Status__c = null OR (Status__c != 'Removed' AND Status__c != 'Closed'))";
+    let query = `SELECT Id, Name, Queue_Status__c, LastModifiedDate FROM Contributor_Project__c WHERE Queue_Status__c != null AND ${statusFilter}`;
     if (status && status !== '--None--') {
-      query += ` AND Queue_Status__c = '${status}'`;
+      query += ` AND Queue_Status__c = '${status.replace(/'/g, "''")}'`;
     }
     query += ` ORDER BY LastModifiedDate DESC LIMIT 1000`;
     
@@ -880,7 +1175,9 @@ router.get('/analytics/export', authenticate, authorize('view_project', 'all'), 
     const conn = await getSalesforceConnection();
     
     // Fetch projects with limit to avoid timeout
-    const query = `SELECT Id, Name, Queue_Status__c, Status__c, LastModifiedDate FROM Contributor_Project__c WHERE Queue_Status__c != null ORDER BY LastModifiedDate DESC LIMIT 2000`;
+    // Include ALL Contributor Projects (excluding only Removed and Closed status)
+    const statusFilter = "(Status__c = null OR (Status__c != 'Removed' AND Status__c != 'Closed'))";
+    const query = `SELECT Id, Name, Queue_Status__c, Status__c, LastModifiedDate FROM Contributor_Project__c WHERE Queue_Status__c != null AND ${statusFilter} ORDER BY LastModifiedDate DESC LIMIT 2000`;
     
     const queryPromise = conn.query(query);
     const queryTimeout = new Promise((_, reject) => 
