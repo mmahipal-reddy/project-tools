@@ -35,17 +35,6 @@ export default {
       `
     },
     {
-      heading: 'Quick Actions',
-      content: `
-        <p>The Quick Actions menu (accessible via the floating action button) provides quick access to frequently used features:</p>
-        <ul>
-          <li>Create new projects, objectives, and other objects</li>
-          <li>Navigate to recent pages</li>
-          <li>Access common workflows</li>
-        </ul>
-      `
-    },
-    {
       heading: 'GPC Filtering',
       content: `
         <p>GPC (Global Persona-Based Content) Filtering allows you to personalize your view by filtering data based on your interested accounts and projects. You can:</p>

@@ -33,9 +33,25 @@ const Administration = () => {
     // Check URL params for tab
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam === 'settings' && canViewSettings) {
-      return 'settings';
+    if (tabParam) {
+      // Validate tab and permissions
+      if (tabParam === 'settings' && canViewSettings) {
+        return 'settings';
+      }
+      if (tabParam === 'history' && userRole === ROLES.ADMIN) {
+        return 'history';
+      }
+      if (tabParam === 'salesforce-settings' && canManageSalesforce) {
+        return 'salesforce-settings';
+      }
+      if (tabParam === 'user-management' && canManageUsers) {
+        return 'user-management';
+      }
+      if (tabParam === 'audit-logs' && userRole === ROLES.ADMIN) {
+        return 'audit-logs';
+      }
     }
+    // Default tab based on permissions
     if (canManageSalesforce) return 'salesforce-settings';
     if (canManageUsers) return 'user-management';
     if (canViewSettings) return 'settings';
@@ -44,16 +60,37 @@ const Administration = () => {
   
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   
-  // Handle tab changes from URL
+  // Handle tab changes from URL (only on mount or when URL changes externally)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabParam = urlParams.get('tab');
-    if (tabParam && tabParam !== activeTab) {
-      if (tabParam === 'settings' && canViewSettings) {
-        setActiveTab('settings');
+    const handleUrlChange = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam) {
+        // Validate tab and permissions
+        if (tabParam === 'settings' && canViewSettings) {
+          setActiveTab('settings');
+        } else if (tabParam === 'history' && userRole === ROLES.ADMIN) {
+          setActiveTab('history');
+        } else if (tabParam === 'salesforce-settings' && canManageSalesforce) {
+          setActiveTab('salesforce-settings');
+        } else if (tabParam === 'user-management' && canManageUsers) {
+          setActiveTab('user-management');
+        } else if (tabParam === 'audit-logs' && userRole === ROLES.ADMIN) {
+          setActiveTab('audit-logs');
+        }
       }
-    }
-  }, [canViewSettings]);
+    };
+    
+    // Check URL on mount
+    handleUrlChange();
+    
+    // Listen for popstate events (back/forward button)
+    window.addEventListener('popstate', handleUrlChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+    };
+  }, [canViewSettings, userRole, canManageSalesforce, canManageUsers]);
 
   // Update active tab if current tab becomes unavailable
   useEffect(() => {
@@ -84,7 +121,7 @@ const Administration = () => {
         width: `calc(100% - ${sidebarWidth}px)`,
         transition: 'margin-left 0.3s ease, width 0.3s ease',
         padding: '24px',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#fff',
         minHeight: '100vh'
       }}>
         <div className="administration-header">
@@ -117,7 +154,13 @@ const Administration = () => {
         }}>
           {canManageSalesforce && (
             <button
-              onClick={() => setActiveTab('salesforce-settings')}
+              onClick={() => {
+                setActiveTab('salesforce-settings');
+                // Update URL without page reload
+                const url = new URL(window.location);
+                url.searchParams.set('tab', 'salesforce-settings');
+                window.history.pushState({}, '', url);
+              }}
               style={{
                 padding: '12px 20px',
                 background: 'none',
@@ -135,7 +178,13 @@ const Administration = () => {
           )}
           {canManageUsers && (
             <button
-              onClick={() => setActiveTab('user-management')}
+              onClick={() => {
+                setActiveTab('user-management');
+                // Update URL without page reload
+                const url = new URL(window.location);
+                url.searchParams.set('tab', 'user-management');
+                window.history.pushState({}, '', url);
+              }}
               style={{
                 padding: '12px 20px',
                 background: 'none',
@@ -178,7 +227,13 @@ const Administration = () => {
           {userRole === ROLES.ADMIN && (
             <>
               <button
-                onClick={() => setActiveTab('audit-logs')}
+                onClick={() => {
+                  setActiveTab('audit-logs');
+                  // Update URL without page reload
+                  const url = new URL(window.location);
+                  url.searchParams.set('tab', 'audit-logs');
+                  window.history.pushState({}, '', url);
+                }}
                 style={{
                   padding: '12px 20px',
                   background: 'none',
@@ -194,7 +249,13 @@ const Administration = () => {
                 Audit Logs
               </button>
               <button
-                onClick={() => setActiveTab('history')}
+                onClick={() => {
+                  setActiveTab('history');
+                  // Update URL without page reload
+                  const url = new URL(window.location);
+                  url.searchParams.set('tab', 'history');
+                  window.history.pushState({}, '', url);
+                }}
                 style={{
                   padding: '12px 20px',
                   background: 'none',
