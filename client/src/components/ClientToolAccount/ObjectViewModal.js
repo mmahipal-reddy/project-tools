@@ -6,7 +6,7 @@ import FunnelChart from '../../pages/Dashboard/components/FunnelChart';
 import ProjectRosterFunnelChart from './ProjectRosterFunnelChart';
 import './ObjectViewModal.css';
 
-const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) => {
+const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName, readOnly = false }) => {
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -358,18 +358,85 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
       return objectData[relationshipNameField];
     }
     
-    // Format dates
+    // Format dates - use shorter format for date-only fields
     if (fieldName && (fieldName.includes('Date') || fieldName.includes('Time') || fieldName.includes('At'))) {
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleString();
+          // For date-only fields (not datetime), use shorter format
+          if (fieldName.includes('Date') && !fieldName.includes('Time') && !fieldName.includes('At')) {
+            return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+          }
+          // For datetime fields, use full format
+          return date.toLocaleString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
         }
       } catch (e) {
         // Ignore date parsing errors
       }
     }
     return String(value);
+  };
+  
+  // Check if a field is a relationship field that should be clickable
+  const isRelationshipField = (fieldName) => {
+    const metadata = fieldMetadata[fieldName] || {};
+    if (metadata.type === 'reference' && metadata.relationshipName) {
+      return true;
+    }
+    // Check for _Name suffix indicating a relationship
+    if (fieldName.endsWith('_Name') && objectData && objectData[fieldName]) {
+      const baseField = fieldName.replace('_Name', '');
+      const baseMetadata = fieldMetadata[baseField] || {};
+      if (baseMetadata.type === 'reference') {
+        return true;
+      }
+    }
+    return false;
+  };
+  
+  // Get relationship ID for a field
+  const getRelationshipId = (fieldName) => {
+    const relationshipIdField = `${fieldName}_Id`;
+    if (objectData && objectData[relationshipIdField]) {
+      return objectData[relationshipIdField];
+    }
+    // Try base field ID
+    const baseField = fieldName.replace('_Name', '');
+    const baseIdField = `${baseField}_Id`;
+    if (objectData && objectData[baseIdField]) {
+      return objectData[baseIdField];
+    }
+    // Try the field value itself if it's an ID
+    const value = objectData && objectData[fieldName];
+    if (value && typeof value === 'string' && value.length === 18) {
+      return value;
+    }
+    return null;
+  };
+  
+  // Format Created By / Last Modified By with timestamp
+  const formatUserField = (fieldName) => {
+    if (fieldName === 'CreatedById' || fieldName === 'CreatedBy') {
+      const userName = objectData && (objectData['CreatedBy_Name'] || objectData['CreatedBy']?.Name);
+      const userId = objectData && (objectData['CreatedBy_Id'] || objectData['CreatedBy']?.Id || objectData['CreatedById']);
+      const createdDate = objectData && objectData['CreatedDate'];
+      
+      if (userName || userId) {
+        const dateStr = createdDate ? new Date(createdDate).toLocaleString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+        return { userName: userName || 'Unknown User', userId, dateStr, isCreatedBy: true };
+      }
+    }
+    if (fieldName === 'LastModifiedById' || fieldName === 'LastModifiedBy') {
+      const userName = objectData && (objectData['LastModifiedBy_Name'] || objectData['LastModifiedBy']?.Name);
+      const userId = objectData && (objectData['LastModifiedBy_Id'] || objectData['LastModifiedBy']?.Id || objectData['LastModifiedById']);
+      const modifiedDate = objectData && objectData['LastModifiedDate'];
+      
+      if (userName || userId) {
+        const dateStr = modifiedDate ? new Date(modifiedDate).toLocaleString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+        return { userName: userName || 'Unknown User', userId, dateStr, isCreatedBy: false };
+      }
+    }
+    return null;
   };
 
   const getFieldLabel = (fieldName) => {
@@ -386,8 +453,27 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
     !key.endsWith('__r') &&
     !key.includes('.') &&
     key !== 'attributes' &&
-    !key.endsWith('_Name') // Exclude relationship name fields from main list (they're displayed with their parent field)
+    !key.endsWith('_Name') && // Exclude relationship name fields from main list (they're displayed with their parent field)
+    !key.endsWith('_Id') && // Exclude relationship ID fields
+    key !== 'CreatedById' && // Exclude CreatedById (we show CreatedBy with timestamp)
+    key !== 'LastModifiedById' && // Exclude LastModifiedById (we show LastModifiedBy with timestamp)
+    key !== 'CreatedDate' && // Exclude CreatedDate (shown with CreatedBy)
+    key !== 'LastModifiedDate' // Exclude LastModifiedDate (shown with LastModifiedBy)
   ) : [];
+  
+  // Add CreatedBy and LastModifiedBy fields if we have the data
+  if (objectData && !editing) {
+    if (objectData['CreatedBy_Name'] || objectData['CreatedById']) {
+      if (!fields.includes('CreatedBy')) {
+        fields.push('CreatedBy');
+      }
+    }
+    if (objectData['LastModifiedBy_Name'] || objectData['LastModifiedById']) {
+      if (!fields.includes('LastModifiedBy')) {
+        fields.push('LastModifiedBy');
+      }
+    }
+  }
 
   // Group fields by sections
   const fieldsBySection = {};
@@ -457,7 +543,7 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
             </div>
           ) : objectData ? (
             <>
-              {!editing && (
+              {!editing && !readOnly && (
                 <div className="object-view-modal-actions">
                   <button className="btn-primary" onClick={handleEdit}>
                     <Edit size={16} />
@@ -591,6 +677,11 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
                               });
                             }
                             
+                            // Check if this is a Created By / Last Modified By field
+                            const userFieldInfo = formatUserField(fieldName);
+                            const isRelationship = !userFieldInfo && isRelationshipField(fieldName);
+                            const relationshipId = isRelationship ? getRelationshipId(fieldName) : null;
+                            
                             return (
                               <div key={fieldName} className="object-view-field">
                                 <div className="object-view-field-label">
@@ -623,6 +714,65 @@ const ObjectViewModal = ({ isOpen, onClose, objectType, objectId, objectName }) 
                                         readOnly={!isUpdateable}
                                       />
                                     )
+                                  ) : userFieldInfo ? (
+                                    // Display Created By / Last Modified By with icon and timestamp
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <div style={{ 
+                                        width: '24px', 
+                                        height: '24px', 
+                                        borderRadius: '50%', 
+                                        background: '#0176d3', 
+                                        color: '#fff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        flexShrink: 0
+                                      }}>
+                                        {userFieldInfo.userName ? userFieldInfo.userName.charAt(0).toUpperCase() : 'U'}
+                                      </div>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        {relationshipId ? (
+                                          <a
+                                            href="#"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              // Could open user modal here if needed
+                                            }}
+                                            style={{ 
+                                              color: '#0176d3', 
+                                              textDecoration: 'underline',
+                                              cursor: 'pointer',
+                                              fontSize: '14px'
+                                            }}
+                                          >
+                                            {userFieldInfo.userName}
+                                          </a>
+                                        ) : (
+                                          <span style={{ fontSize: '14px', color: '#0176d3' }}>{userFieldInfo.userName}</span>
+                                        )}
+                                        {userFieldInfo.dateStr && (
+                                          <span style={{ fontSize: '12px', color: '#666' }}>{userFieldInfo.dateStr}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : isRelationship && relationshipId ? (
+                                    // Display relationship field as clickable link
+                                    <a
+                                      href="#"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        // Could open related record modal here if needed
+                                      }}
+                                      style={{ 
+                                        color: '#0176d3', 
+                                        textDecoration: 'underline',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {formatFieldValue(dataToDisplay[fieldName], fieldName)}
+                                    </a>
                                   ) : (
                                     <span>{formatFieldValue(dataToDisplay[fieldName], fieldName)}</span>
                                   )}

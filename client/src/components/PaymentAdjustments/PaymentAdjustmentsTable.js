@@ -21,7 +21,8 @@ const PaymentAdjustmentsTable = ({
   showFilters,
   onToggleFilters,
   filters,
-  onNewClick
+  onNewClick,
+  onRecordClick
 }) => {
   const columnSelectorRef = useRef(null);
 
@@ -313,12 +314,30 @@ const PaymentAdjustmentsTable = ({
                   <tr key={record.Id || index}>
                     {selectedColumns.map((column) => {
                       const value = getColumnValue(record, column);
+                      const isNameColumn = column === 'Name';
+                      
                       return (
                         <TableCell 
                           key={column}
                           className="column-equal"
                         >
-                          {formatValue(value)}
+                          {isNameColumn && record.Id && onRecordClick ? (
+                            <span
+                              className="clickable-field"
+                              onClick={() => onRecordClick(record.Id, value)}
+                              style={{
+                                cursor: 'pointer',
+                                color: '#0176d3',
+                                textDecoration: 'underline',
+                                textDecorationColor: '#0176d3'
+                              }}
+                              title="Click to view payment adjustment details"
+                            >
+                              {formatValue(value)}
+                            </span>
+                          ) : (
+                            formatValue(value)
+                          )}
                         </TableCell>
                       );
                     })}

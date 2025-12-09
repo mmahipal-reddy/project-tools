@@ -57,6 +57,7 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     const conn = await createSalesforceConnection();
     const offset = parseInt(req.query.offset) || 0;
     const limit = parseInt(req.query.limit) || 1000;
+    const cursor = req.query.cursor || null; // Last Name from previous page for cursor-based pagination
     
     // Parse filters with error handling
     let filters = {};
@@ -79,6 +80,15 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     
     // Build WHERE clause - exclude Closed and Removed statuses
     let whereConditions = ["(Status__c = null OR (Status__c != 'Removed' AND Status__c != 'Closed'))"];
+    
+    // Add cursor-based pagination for offsets > 2000
+    // Use Name > cursor to get records after the cursor
+    if (cursor && offset > 2000) {
+      const sanitizedCursor = validateAndSanitizeSearchTerm(cursor);
+      if (sanitizedCursor) {
+        whereConditions.push(`Name > '${sanitizedCursor.replace(/'/g, "''")}'`);
+      }
+    }
     
     // Add search filter - search by contributor name
     const sanitizedSearch = validateAndSanitizeSearchTerm(req.query.search);
@@ -241,15 +251,51 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     
     // Fetch limit + 1 to check if there are more records
     const queryLimit = limit + 1;
-    const query = `SELECT ${defaultFields.join(', ')} 
-                   FROM Payment_Adjustment__c 
-                   ${finalWhereClause}
-                   ORDER BY Name
-                   LIMIT ${queryLimit}
-                   OFFSET ${offset}`;
     
-    const result = await conn.query(query);
-    const allRecords = result.records || [];
+    let query;
+    let allRecords = [];
+    let actualOffset = offset;
+    let result;
+    
+    // Salesforce has a maximum OFFSET of 2000
+    // For offsets >= 2000, we use cursor-based pagination (Name > cursor)
+    if (offset >= 2000 && cursor) {
+      // Cursor-based pagination: no OFFSET, just use WHERE Name > cursor
+      query = `SELECT ${defaultFields.join(', ')} 
+               FROM Payment_Adjustment__c 
+               ${finalWhereClause}
+               ORDER BY Name
+               LIMIT ${queryLimit}`;
+      
+      result = await conn.query(query);
+      allRecords = result.records || [];
+      // For cursor-based pagination, we don't use offset in the response
+      actualOffset = offset; // Keep the original offset for response
+    } else if (offset >= 2000 && !cursor) {
+      // No cursor provided but offset >= 2000 - cap at 2000
+      console.warn(`Offset ${offset} exceeds Salesforce maximum of 2000. Capping at 2000. Provide cursor parameter for offsets >= 2000.`);
+      actualOffset = 2000;
+      query = `SELECT ${defaultFields.join(', ')} 
+               FROM Payment_Adjustment__c 
+               ${finalWhereClause}
+               ORDER BY Name
+               LIMIT ${queryLimit}
+               OFFSET ${actualOffset}`;
+      
+      result = await conn.query(query);
+      allRecords = result.records || [];
+    } else {
+      // Normal pagination for offsets < 2000
+      query = `SELECT ${defaultFields.join(', ')} 
+               FROM Payment_Adjustment__c 
+               ${finalWhereClause}
+               ORDER BY Name
+               LIMIT ${queryLimit}
+               OFFSET ${offset}`;
+      
+      result = await conn.query(query);
+      allRecords = result.records || [];
+    }
     
     // Check if we got more than the requested limit
     const hasMore = allRecords.length > limit;
@@ -289,15 +335,21 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     });
     
     // Calculate total - use result.totalSize if available, otherwise estimate
-    const totalRecords = result.totalSize || (offset + allRecords.length);
+    const totalRecords = result.totalSize || (actualOffset + allRecords.length);
+    
+    // Get the last Name for cursor-based pagination
+    // Always return cursor so frontend can use it when offset exceeds 2000
+    const lastRecord = formattedRecords.length > 0 ? formattedRecords[formattedRecords.length - 1] : null;
+    const nextCursor = lastRecord && lastRecord.Name ? lastRecord.Name : null;
     
     res.json({
       success: true,
       records: formattedRecords,
       hasMore: hasMore,
       total: totalRecords,
-      offset: offset,
-      limit: limit
+      offset: actualOffset,
+      limit: limit,
+      cursor: nextCursor // Return cursor for cursor-based pagination when offset > 2000
     });
   } catch (error) {
     console.error('Error fetching Payment Adjustments:', error);
@@ -384,6 +436,98 @@ router.get('/search-contributor-projects', authenticate, authorize('view_project
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to search contributor projects'
+    });
+  }
+}));
+
+/**
+ * Get a single Payment Adjustment by ID
+ * GET /api/payment-adjustments/:id
+ */
+router.get('/:id', authenticate, authorize('view_project', 'all'), asyncHandler(async (req, res) => {
+  try {
+    const conn = await createSalesforceConnection();
+    const { id } = req.params;
+    
+    const fields = [
+      'Id',
+      'Name',
+      'Contributor__c',
+      'Contributor__r.Name',
+      'Contributor_Project__c',
+      'Contributor_Project__r.Name',
+      'Payment_Adjustment_Amount__c',
+      'Adjustment_Type__c',
+      'Adjustment_Notes__c',
+      'Payment_Adjustment_Date__c',
+      'Payment_Adjustment_Date_Text__c',
+      'Payment_ID__c',
+      'Contributor_Facing_Project_Name__c',
+      'Status__c',
+      'CreatedBy.Name',
+      'CreatedBy.Id',
+      'CreatedDate',
+      'LastModifiedBy.Name',
+      'LastModifiedBy.Id',
+      'LastModifiedDate'
+    ];
+    
+    const query = `SELECT ${fields.join(', ')} 
+                   FROM Payment_Adjustment__c 
+                   WHERE Id = '${id.replace(/'/g, "''")}' 
+                   LIMIT 1`;
+    
+    const result = await conn.query(query);
+    
+    if (!result.records || result.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Payment Adjustment not found'
+      });
+    }
+    
+    const record = result.records[0];
+    
+    const formatted = {
+      Id: record.Id,
+      Name: record.Name || '',
+      Contributor__c: record.Contributor__c || '',
+      Contributor__r: record.Contributor__r ? {
+        Name: record.Contributor__r.Name || ''
+      } : null,
+      Contributor_Project__c: record.Contributor_Project__c || '',
+      Contributor_Project__r: record.Contributor_Project__r ? {
+        Name: record.Contributor_Project__r.Name || ''
+      } : null,
+      Payment_Adjustment_Amount__c: record.Payment_Adjustment_Amount__c || null,
+      Adjustment_Type__c: record.Adjustment_Type__c || '',
+      Adjustment_Notes__c: record.Adjustment_Notes__c || '',
+      Payment_Adjustment_Date__c: record.Payment_Adjustment_Date__c || null,
+      Payment_Adjustment_Date_Text__c: record.Payment_Adjustment_Date_Text__c || '',
+      Payment_ID__c: record.Payment_ID__c || '',
+      Contributor_Facing_Project_Name__c: record.Contributor_Facing_Project_Name__c || '',
+      Status__c: record.Status__c || '',
+      CreatedBy: record.CreatedBy ? {
+        Name: record.CreatedBy.Name || '',
+        Id: record.CreatedBy.Id || ''
+      } : null,
+      CreatedDate: record.CreatedDate || null,
+      LastModifiedBy: record.LastModifiedBy ? {
+        Name: record.LastModifiedBy.Name || '',
+        Id: record.LastModifiedBy.Id || ''
+      } : null,
+      LastModifiedDate: record.LastModifiedDate || null
+    };
+    
+    res.json({
+      success: true,
+      record: formatted
+    });
+  } catch (error) {
+    console.error('Error fetching Payment Adjustment:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch Payment Adjustment'
     });
   }
 }));

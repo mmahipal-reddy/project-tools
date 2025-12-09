@@ -652,8 +652,43 @@ router.get('/object/:objectType/:id', authenticate, authorize('view_project', 'a
     console.log(`[ObjectViewModal] Sections: ${JSON.stringify(Object.values(fieldSections).reduce((acc, section) => { acc[section] = (acc[section] || 0) + 1; return acc; }, {}))}`);
 
     // Build query with relationship field names included
-    const relationshipQueries = relationshipFields.map(rel => `${rel.relationshipName}.Name`);
-    const allFields = [...readableFields, ...relationshipQueries];
+    // Collect all relationship fields as individual items
+    const relationshipFieldList = [];
+    relationshipFields.forEach(rel => {
+      relationshipFieldList.push(`${rel.relationshipName}.Name`);
+      relationshipFieldList.push(`${rel.relationshipName}.Id`);
+    });
+    
+    // Always include CreatedBy and LastModifiedBy information for System Information section
+    const systemFields = [];
+    if (readableFields.includes('CreatedById')) {
+      systemFields.push('CreatedBy.Name', 'CreatedBy.Id', 'CreatedDate');
+    }
+    if (readableFields.includes('LastModifiedById')) {
+      systemFields.push('LastModifiedBy.Name', 'LastModifiedBy.Id', 'LastModifiedDate');
+    }
+    
+    // Combine all fields and remove duplicates
+    const allFieldsSet = new Set();
+    
+    // Add readable fields first
+    readableFields.forEach(field => {
+      allFieldsSet.add(field);
+    });
+    
+    // Add relationship fields (these are compound like Contributor__r.Name, won't conflict with Name)
+    relationshipFieldList.forEach(field => {
+      allFieldsSet.add(field);
+    });
+    
+    // Add system fields (CreatedBy.Name, etc.)
+    systemFields.forEach(field => {
+      allFieldsSet.add(field);
+    });
+    
+    // Convert to array for the query
+    const allFields = Array.from(allFieldsSet);
+    
     const query = `SELECT ${allFields.join(', ')} FROM ${salesforceObjectName} WHERE Id = '${id}' LIMIT 1`;
     console.log(`[ObjectViewModal] Executing query: ${query.substring(0, 200)}...`);
     
@@ -689,8 +724,27 @@ router.get('/object/:objectType/:id', authenticate, authorize('view_project', 'a
       const relFieldName = rel.relationshipName;
       if (record[relFieldName] && record[relFieldName].Name) {
         objectData[`${rel.fieldName}_Name`] = record[relFieldName].Name;
+        if (record[relFieldName].Id) {
+          objectData[`${rel.fieldName}_Id`] = record[relFieldName].Id;
+        }
       }
     });
+    
+    // Add CreatedBy and LastModifiedBy information
+    if (record.CreatedBy && record.CreatedBy.Name) {
+      objectData['CreatedBy_Name'] = record.CreatedBy.Name;
+      objectData['CreatedBy_Id'] = record.CreatedBy.Id;
+    }
+    if (record.CreatedDate) {
+      objectData['CreatedDate'] = record.CreatedDate;
+    }
+    if (record.LastModifiedBy && record.LastModifiedBy.Name) {
+      objectData['LastModifiedBy_Name'] = record.LastModifiedBy.Name;
+      objectData['LastModifiedBy_Id'] = record.LastModifiedBy.Id;
+    }
+    if (record.LastModifiedDate) {
+      objectData['LastModifiedDate'] = record.LastModifiedDate;
+    }
 
     // Fetch child relationships (related records)
     const childRelationships = [];

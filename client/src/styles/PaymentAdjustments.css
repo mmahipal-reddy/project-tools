@@ -688,3 +688,17 @@
   vertical-align: middle;
 }
 
+/* Clickable field styling for Payment Adjustment Name */
+.payment-adjustments-container .clickable-field {
+  color: #0176d3;
+  text-decoration: underline;
+  text-decoration-color: #0176d3;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.payment-adjustments-container .clickable-field:hover {
+  color: #014486;
+  text-decoration-color: #014486;
+}
+

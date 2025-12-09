@@ -12,6 +12,7 @@ import GPCFilterToggle from '../components/GPCFilter/GPCFilterToggle';
 import PaymentAdjustmentsTable from '../components/PaymentAdjustments/PaymentAdjustmentsTable';
 import PaymentAdjustmentsFilterBuilder from '../components/PaymentAdjustments/PaymentAdjustmentsFilterBuilder';
 import NewPaymentAdjustmentModal from '../components/PaymentAdjustments/NewPaymentAdjustmentModal';
+import ViewPaymentAdjustmentModal from '../components/PaymentAdjustments/ViewPaymentAdjustmentModal';
 import TruncatedSpan from '../components/TruncatedSpan';
 import '../styles/PaymentAdjustments.css';
 import '../styles/Sidebar.css';
@@ -32,6 +33,7 @@ const PaymentAdjustments = () => {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [cursor, setCursor] = useState(null); // For cursor-based pagination when offset > 2000
   const [selectedColumns, setSelectedColumns] = useState([
     'Name',
     'Contributor__c',
@@ -48,6 +50,10 @@ const PaymentAdjustments = () => {
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const tableContainerRef = useRef(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  
+  // View modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewModalPaymentAdjustmentId, setViewModalPaymentAdjustmentId] = useState(null);
 
   useEffect(() => {
     fetchRecords(true);
@@ -99,6 +105,7 @@ const PaymentAdjustments = () => {
     setOffset(0);
     setRecords([]);
     setHasMore(true);
+    setCursor(null); // Reset cursor when filters/search change
     fetchRecords(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, debouncedSearchTerm]);
@@ -120,6 +127,7 @@ const PaymentAdjustments = () => {
     if (reset) {
       setLoading(true);
       setOffset(0);
+      setCursor(null);
     } else {
       setLoadingMore(true);
     }
@@ -129,6 +137,11 @@ const PaymentAdjustments = () => {
       const currentOffset = reset ? 0 : (customOffset !== null ? customOffset : offset);
       params.append('offset', currentOffset.toString());
       params.append('limit', '1000');
+      
+      // Add cursor for cursor-based pagination when offset >= 2000
+      if (currentOffset >= 2000 && cursor) {
+        params.append('cursor', cursor);
+      }
       
       if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
         params.append('search', debouncedSearchTerm.trim());
@@ -148,6 +161,10 @@ const PaymentAdjustments = () => {
         if (reset) {
           setRecords(newRecords);
           setOffset(newRecords.length);
+          // Set cursor from response if available
+          if (response.data.cursor) {
+            setCursor(response.data.cursor);
+          }
         } else {
           setRecords(prev => {
             // Avoid duplicates by checking IDs
@@ -156,6 +173,10 @@ const PaymentAdjustments = () => {
             return [...prev, ...uniqueNewRecords];
           });
           setOffset(prev => prev + newRecords.length);
+          // Update cursor for next page
+          if (response.data.cursor) {
+            setCursor(response.data.cursor);
+          }
         }
         // Update hasMore based on whether we got a full batch
         setHasMore(newRecords.length === 1000);
@@ -170,7 +191,7 @@ const PaymentAdjustments = () => {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [filters, debouncedSearchTerm, offset, getFilterParams]);
+  }, [filters, debouncedSearchTerm, offset, cursor, getFilterParams]);
 
   const handleRefresh = useCallback((e) => {
     if (e) {
@@ -181,6 +202,7 @@ const PaymentAdjustments = () => {
     setOffset(0);
     setRecords([]);
     setHasMore(true);
+    setCursor(null);
     fetchRecords(true).finally(() => {
       setRefreshing(false);
     });
@@ -343,6 +365,10 @@ const PaymentAdjustments = () => {
                 onToggleFilters={() => setShowFilters(!showFilters)}
                 filters={filters}
                 onNewClick={() => setShowNewModal(true)}
+                onRecordClick={(recordId, recordName) => {
+                  setViewModalPaymentAdjustmentId(recordId);
+                  setShowViewModal(true);
+                }}
               />
             </div>
           </div>
@@ -357,6 +383,16 @@ const PaymentAdjustments = () => {
           // Refresh the table
           fetchRecords(true);
         }}
+      />
+
+      {/* View Payment Adjustment Modal */}
+      <ViewPaymentAdjustmentModal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setViewModalPaymentAdjustmentId(null);
+        }}
+        paymentAdjustmentId={viewModalPaymentAdjustmentId}
       />
     </div>
   );
