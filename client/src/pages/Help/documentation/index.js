@@ -1,6 +1,6 @@
 // Documentation index - aggregates all page documentation
 // All documentation files are now modular and can be updated independently
-// Version: 2.0 - All 35 documentation pages completed with detailed content
+// Version: 2.1 - 36 documentation pages completed with detailed content (added Payment Adjustments)
 // Updated: 2024-12-08
 import gettingStarted from './getting-started/gettingStarted';
 import dashboard from './dashboards/dashboard';
@@ -24,6 +24,7 @@ import clientToolAccount from './project-management/clientToolAccount';
 import onboardingContributors from './project-management/onboardingContributors';
 import poPayRates from './project-management/poPayRates';
 import poProductivityTargets from './project-management/poProductivityTargets';
+import paymentAdjustments from './project-management/paymentAdjustments';
 import reportBuilder from './reports/reportBuilder';
 import advancedReportBuilder from './reports/advancedReportBuilder';
 import scheduledReports from './reports/scheduledReports';
@@ -62,6 +63,7 @@ export const documentationContent = {
   'onboarding-contributors': onboardingContributors,
   'po-pay-rates': poPayRates,
   'po-productivity-targets': poProductivityTargets,
+  'payment-adjustments': paymentAdjustments,
   'report-builder': reportBuilder,
   'advanced-report-builder': advancedReportBuilder,
   'scheduled-reports': scheduledReports,

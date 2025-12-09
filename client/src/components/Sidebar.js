@@ -249,6 +249,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
           icon: CheckCircle,
           path: '/pm-approvals',
           permission: null
+        },
+        {
+          id: 'payment-adjustments',
+          label: 'Payment Adjustments',
+          icon: DollarSign,
+          path: '/payment-adjustments',
+          permission: null
         }
       ]
     },

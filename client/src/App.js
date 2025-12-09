@@ -52,6 +52,7 @@ import ContributorTimeStatusDashboard from './pages/ContributorTimeStatusDashboa
 import ContributorMatchMatrix from './pages/ContributorMatchMatrix';
 import POPayRates from './pages/POPayRates';
 import POProductivityTargets from './pages/POProductivityTargets';
+import PaymentAdjustments from './pages/PaymentAdjustments';
 import PMApprovals from './pages/ProjectManagement/PMApprovals/PMApprovals';
 import Help from './pages/Help/Help';
 import './App.css';
@@ -291,6 +292,14 @@ function AppContent() {
               element={
                 <RoleProtectedRoute>
                   <POPayRates />
+                </RoleProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment-adjustments"
+              element={
+                <RoleProtectedRoute>
+                  <PaymentAdjustments />
                 </RoleProtectedRoute>
               }
             />
