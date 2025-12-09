@@ -47,6 +47,14 @@ const sanitizeInput = (req, res, next) => {
     
     // Sanitize query parameters
     if (req.query && typeof req.query === 'object') {
+      // Handle filters parameter specially - it's a JSON string that needs parsing
+      let filtersParam = null;
+      if (req.query.filters && typeof req.query.filters === 'string') {
+        filtersParam = req.query.filters;
+        // Temporarily remove filters from query for validation
+        delete req.query.filters;
+      }
+      
       if (!isPreviewEndpoint) {
         const sqlValidation = validateForSqlInjection(req.query);
         if (!sqlValidation.isValid) {
@@ -68,6 +76,11 @@ const sanitizeInput = (req, res, next) => {
       }
       
       req.query = sanitizeObject(req.query, { strict: !isPreviewEndpoint });
+      
+      // Restore filters parameter (will be validated in route handler)
+      if (filtersParam !== null) {
+        req.query.filters = filtersParam;
+      }
     }
     
     // Sanitize route parameters
