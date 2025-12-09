@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { GPCFilterProvider } from './context/GPCFilterContext';
@@ -59,58 +59,37 @@ import './styles/GlobalTableHeaders.css';
 import ErrorBoundary from './components/ErrorBoundary';
 import { applyAutoTooltips } from './utils/autoTooltip';
 
-function App() {
-  useEffect(() => {
-    // Apply auto tooltips after initial render and on route changes
-    const timer = setTimeout(() => {
-      applyAutoTooltips();
-    }, 100);
-
-    // Reapply on window resize
-    const handleResize = () => {
-      setTimeout(() => {
-        applyAutoTooltips();
-      }, 100);
-    };
-
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
+// Inner component to access location within Router context
+function AppContent() {
+  const location = useLocation();
+  const isHelpPage = location.pathname === '/help';
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <GPCFilterProvider>
-        <Router>
-          <div className="App">
-            <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#fff',
-                color: '#1e293b',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#fff',
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
-                },
-              },
-            }}
-          />
-          <Routes>
+    <div className="App">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#fff',
+            color: '#1e293b',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+      <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -468,12 +447,43 @@ function App() {
                 </RoleProtectedRoute>
               }
             />
-          </Routes>
-          {/* Navigation Tracker - Tracks page visits for recent items */}
-          <NavigationTracker />
-          {/* Quick Actions Menu - Available on all protected pages */}
-          <QuickActionsMenu />
-          </div>
+      </Routes>
+      {/* Navigation Tracker - Tracks page visits for recent items */}
+      <NavigationTracker />
+      {/* Quick Actions Menu - Available on all protected pages except Help */}
+      {!isHelpPage && <QuickActionsMenu />}
+    </div>
+  );
+}
+
+function App() {
+  useEffect(() => {
+    // Apply auto tooltips after initial render and on route changes
+    const timer = setTimeout(() => {
+      applyAutoTooltips();
+    }, 100);
+
+    // Reapply on window resize
+    const handleResize = () => {
+      setTimeout(() => {
+        applyAutoTooltips();
+      }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <GPCFilterProvider>
+        <Router>
+          <AppContent />
         </Router>
         </GPCFilterProvider>
       </AuthProvider>

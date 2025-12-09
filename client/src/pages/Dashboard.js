@@ -20,10 +20,10 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useSidebarWidth(sidebarOpen);
   const [stats, setStats] = useState([
-    { label: 'Total Publishes', value: '0', icon: CheckCircle, color: '#08979C', description: 'All items published to Salesforce', onClick: () => navigate('/history') },
-    { label: 'Today', value: '0', icon: Zap, color: '#10b981', description: 'Published today', onClick: () => navigate('/history') },
-    { label: 'Last 7 Days', value: '0', icon: Activity, color: '#3b82f6', description: 'Published in last week', onClick: () => navigate('/history') },
-    { label: 'Success Rate', value: '0%', icon: Target, color: '#8b5cf6', description: 'Publish success rate', onClick: () => navigate('/history') }
+    { label: 'Total Publishes', value: '0', icon: CheckCircle, color: '#08979C', description: 'All items published to Salesforce', onClick: () => navigate('/administration?tab=history') },
+    { label: 'Today', value: '0', icon: Zap, color: '#10b981', description: 'Published today', onClick: () => navigate('/administration?tab=history') },
+    { label: 'Last 7 Days', value: '0', icon: Activity, color: '#3b82f6', description: 'Published in last week', onClick: () => navigate('/administration?tab=history') },
+    { label: 'Success Rate', value: '0%', icon: Target, color: '#8b5cf6', description: 'Publish success rate', onClick: () => navigate('/administration?tab=history') }
   ]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,10 +45,10 @@ const Dashboard = () => {
       
       const statsData = response.data || {};
       setStats([
-        { label: 'Total Publishes', value: (statsData.totalPublishes || 0).toString(), icon: CheckCircle, color: '#08979C', description: 'All items published to Salesforce', onClick: () => navigate('/history') },
-        { label: 'Today', value: (statsData.todayPublishes || 0).toString(), icon: Zap, color: '#10b981', description: 'Published today', onClick: () => navigate('/history') },
-        { label: 'Last 7 Days', value: (statsData.recentPublishes || 0).toString(), icon: Activity, color: '#3b82f6', description: 'Published in last week', onClick: () => navigate('/history') },
-        { label: 'Success Rate', value: `${statsData.successRate || 100}%`, icon: Target, color: '#8b5cf6', description: 'Publish success rate', onClick: () => navigate('/history') }
+        { label: 'Total Publishes', value: (statsData.totalPublishes || 0).toString(), icon: CheckCircle, color: '#08979C', description: 'All items published to Salesforce', onClick: () => navigate('/administration?tab=history') },
+        { label: 'Today', value: (statsData.todayPublishes || 0).toString(), icon: Zap, color: '#10b981', description: 'Published today', onClick: () => navigate('/administration?tab=history') },
+        { label: 'Last 7 Days', value: (statsData.recentPublishes || 0).toString(), icon: Activity, color: '#3b82f6', description: 'Published in last week', onClick: () => navigate('/administration?tab=history') },
+        { label: 'Success Rate', value: `${statsData.successRate || 100}%`, icon: Target, color: '#8b5cf6', description: 'Publish success rate', onClick: () => navigate('/administration?tab=history') }
       ]);
       setAnalytics({
         projectsByUser: statsData.projectsByUser || {},
