@@ -28,7 +28,8 @@ const ApprovalsTable = ({
   sortBy,
   sortOrder,
   selectedRows,
-  onRowSelect
+  onRowSelect,
+  onTransactionClick
 }) => {
   const [hoveredRow, setHoveredRow] = useState(null);
 
@@ -253,7 +254,23 @@ const ApprovalsTable = ({
                   onChange={(e) => handleRowSelect(e, record.id)}
                 />
               </td>
-              <td>{record.transactionId || record.id}</td>
+              <td>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onTransactionClick) {
+                      onTransactionClick(record.transactionId || record.id);
+                    }
+                  }}
+                  style={{
+                    color: '#0176d3',
+                    textDecoration: 'underline',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {record.transactionId || record.id}
+                </span>
+              </td>
               <td>{record.contributorName || ''}</td>
               <td className="col-email">{record.email || ''}</td>
               <td className="col-project">{record.projectName || ''}</td>

@@ -18,6 +18,7 @@ import ActionButtons from './components/ActionButtons';
 import ApprovalModal from './components/ApprovalModal';
 import RejectModal from './components/RejectModal';
 import EmailModal from './components/EmailModal';
+import ViewPaymentTransactionModal from './components/ViewPaymentTransactionModal';
 import { useGPCFilter } from '../../../context/GPCFilterContext';
 import { applyGPCFilterToParams } from '../../../utils/gpcFilter';
 import GPCFilterToggle from '../../../components/GPCFilter/GPCFilterToggle';
@@ -199,6 +200,8 @@ const PMApprovals = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showViewTransactionModal, setShowViewTransactionModal] = useState(false);
+  const [viewTransactionId, setViewTransactionId] = useState(null);
   
   // Track if warning has been shown to avoid duplicates
   const warningShownRef = useRef(false);
@@ -745,6 +748,11 @@ const PMApprovals = () => {
     setShowEmailModal(false);
   };
 
+  const handleTransactionClick = (transactionId) => {
+    setViewTransactionId(transactionId);
+    setShowViewTransactionModal(true);
+  };
+
   return (
     <div className="dashboard-layout">
       <Sidebar isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
@@ -973,6 +981,7 @@ const PMApprovals = () => {
                   sortOrder={sortOrder}
                   selectedRows={selectedRows}
                   onRowSelect={handleRowSelect}
+                  onTransactionClick={handleTransactionClick}
                 />
               </div>
             </div>
@@ -1000,6 +1009,16 @@ const PMApprovals = () => {
           selectedCount={selectedRows.length}
           onConfirm={handleEmailConfirm}
           onClose={() => setShowEmailModal(false)}
+        />
+      )}
+      {showViewTransactionModal && (
+        <ViewPaymentTransactionModal
+          isOpen={showViewTransactionModal}
+          onClose={() => {
+            setShowViewTransactionModal(false);
+            setViewTransactionId(null);
+          }}
+          transactionId={viewTransactionId}
         />
       )}
     </div>

@@ -81,9 +81,9 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     // Build WHERE clause - exclude Closed and Removed statuses
     let whereConditions = ["(Status__c = null OR (Status__c != 'Removed' AND Status__c != 'Closed'))"];
     
-    // Add cursor-based pagination for offsets > 2000
+    // Add cursor-based pagination for offsets >= 2000
     // Use Name > cursor to get records after the cursor
-    if (cursor && offset > 2000) {
+    if (cursor && offset >= 2000) {
       const sanitizedCursor = validateAndSanitizeSearchTerm(cursor);
       if (sanitizedCursor) {
         whereConditions.push(`Name > '${sanitizedCursor.replace(/'/g, "''")}'`);
@@ -261,6 +261,7 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     // For offsets >= 2000, we use cursor-based pagination (Name > cursor)
     if (offset >= 2000 && cursor) {
       // Cursor-based pagination: no OFFSET, just use WHERE Name > cursor
+      console.log(`[PaymentAdjustments] Using cursor-based pagination: offset=${offset}, cursor=${cursor}`);
       query = `SELECT ${defaultFields.join(', ')} 
                FROM Payment_Adjustment__c 
                ${finalWhereClause}
@@ -269,11 +270,12 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
       
       result = await conn.query(query);
       allRecords = result.records || [];
+      console.log(`[PaymentAdjustments] Cursor-based query returned ${allRecords.length} records`);
       // For cursor-based pagination, we don't use offset in the response
       actualOffset = offset; // Keep the original offset for response
     } else if (offset >= 2000 && !cursor) {
       // No cursor provided but offset >= 2000 - cap at 2000
-      console.warn(`Offset ${offset} exceeds Salesforce maximum of 2000. Capping at 2000. Provide cursor parameter for offsets >= 2000.`);
+      console.warn(`[PaymentAdjustments] Offset ${offset} exceeds Salesforce maximum of 2000. Capping at 2000. Provide cursor parameter for offsets >= 2000.`);
       actualOffset = 2000;
       query = `SELECT ${defaultFields.join(', ')} 
                FROM Payment_Adjustment__c 
@@ -284,6 +286,7 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
       
       result = await conn.query(query);
       allRecords = result.records || [];
+      console.log(`[PaymentAdjustments] Capped query at offset 2000 returned ${allRecords.length} records`);
     } else {
       // Normal pagination for offsets < 2000
       query = `SELECT ${defaultFields.join(', ')} 
@@ -342,6 +345,8 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
     const lastRecord = formattedRecords.length > 0 ? formattedRecords[formattedRecords.length - 1] : null;
     const nextCursor = lastRecord && lastRecord.Name ? lastRecord.Name : null;
     
+    console.log(`[PaymentAdjustments] Response: offset=${actualOffset}, records=${formattedRecords.length}, hasMore=${hasMore}, cursor=${nextCursor || 'null'}`);
+    
     res.json({
       success: true,
       records: formattedRecords,
@@ -349,7 +354,7 @@ router.get('/', authenticate, authorize('view_project', 'all'), asyncHandler(asy
       total: totalRecords,
       offset: actualOffset,
       limit: limit,
-      cursor: nextCursor // Return cursor for cursor-based pagination when offset > 2000
+      cursor: nextCursor // Return cursor for cursor-based pagination when offset >= 2000
     });
   } catch (error) {
     console.error('Error fetching Payment Adjustments:', error);
