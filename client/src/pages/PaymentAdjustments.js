@@ -34,6 +34,7 @@ const PaymentAdjustments = () => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [cursor, setCursor] = useState(null); // For cursor-based pagination when offset > 2000
+  const cursorRef = useRef(null); // Ref to track cursor synchronously
   const [selectedColumns, setSelectedColumns] = useState([
     'Name',
     'Contributor__c',
@@ -106,6 +107,7 @@ const PaymentAdjustments = () => {
     setRecords([]);
     setHasMore(true);
     setCursor(null); // Reset cursor when filters/search change
+    cursorRef.current = null; // Reset cursor ref
     fetchRecords(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, debouncedSearchTerm]);
@@ -128,6 +130,7 @@ const PaymentAdjustments = () => {
       setLoading(true);
       setOffset(0);
       setCursor(null);
+      cursorRef.current = null;
     } else {
       setLoadingMore(true);
     }
@@ -138,9 +141,15 @@ const PaymentAdjustments = () => {
       params.append('offset', currentOffset.toString());
       params.append('limit', '1000');
       
+      // Use ref cursor for synchronous access (always up-to-date)
+      const currentCursor = cursorRef.current;
+      
       // Add cursor for cursor-based pagination when offset >= 2000
-      if (currentOffset >= 2000 && cursor) {
-        params.append('cursor', cursor);
+      if (currentOffset >= 2000 && currentCursor) {
+        params.append('cursor', currentCursor);
+        console.log(`[PaymentAdjustments] Using cursor-based pagination: offset=${currentOffset}, cursor=${currentCursor}`);
+      } else if (currentOffset >= 2000 && !currentCursor) {
+        console.warn(`[PaymentAdjustments] Offset ${currentOffset} >= 2000 but no cursor available. This may cause pagination to stop.`);
       }
       
       if (debouncedSearchTerm && debouncedSearchTerm.trim()) {
@@ -158,13 +167,20 @@ const PaymentAdjustments = () => {
       const response = await apiClient.get(`/payment-adjustments?${params.toString()}`);
       if (response.data.success) {
         const newRecords = response.data.records || [];
+        const responseCursor = response.data.cursor || null;
+        
+        // Update cursor ref immediately for next fetch (critical for offset > 2000)
+        if (responseCursor) {
+          cursorRef.current = responseCursor;
+          setCursor(responseCursor);
+          console.log(`[PaymentAdjustments] Cursor updated: ${responseCursor}, current offset: ${currentOffset}`);
+        } else if (currentOffset >= 2000) {
+          console.warn(`[PaymentAdjustments] No cursor returned for offset ${currentOffset}. Pagination may stop.`);
+        }
+        
         if (reset) {
           setRecords(newRecords);
           setOffset(newRecords.length);
-          // Set cursor from response if available
-          if (response.data.cursor) {
-            setCursor(response.data.cursor);
-          }
         } else {
           setRecords(prev => {
             // Avoid duplicates by checking IDs
@@ -173,10 +189,6 @@ const PaymentAdjustments = () => {
             return [...prev, ...uniqueNewRecords];
           });
           setOffset(prev => prev + newRecords.length);
-          // Update cursor for next page
-          if (response.data.cursor) {
-            setCursor(response.data.cursor);
-          }
         }
         // Update hasMore based on whether we got a full batch
         setHasMore(newRecords.length === 1000);
@@ -191,7 +203,7 @@ const PaymentAdjustments = () => {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [filters, debouncedSearchTerm, offset, cursor, getFilterParams]);
+  }, [filters, debouncedSearchTerm, offset, getFilterParams]);
 
   const handleRefresh = useCallback((e) => {
     if (e) {
@@ -203,6 +215,7 @@ const PaymentAdjustments = () => {
     setRecords([]);
     setHasMore(true);
     setCursor(null);
+    cursorRef.current = null;
     fetchRecords(true).finally(() => {
       setRefreshing(false);
     });

@@ -84,17 +84,48 @@ const getSalesforceConnection = async () => {
     }
   } else if (urlLower.includes('.my.salesforce.com')) {
     loginUrlForConnection = 'https://login.salesforce.com';
+  } else if (urlLower.includes('test.salesforce.com') || urlLower.includes('test--')) {
+    loginUrlForConnection = 'https://test.salesforce.com';
+  } else if (urlLower.includes('salesforce.com')) {
+    loginUrlForConnection = 'https://login.salesforce.com';
   }
+
+  console.log(`[PM Approvals] Salesforce URL: ${normalizedUrl}`);
+  console.log(`[PM Approvals] Using login URL: ${loginUrlForConnection}`);
 
   const conn = new jsforce.Connection({
     loginUrl: loginUrlForConnection
   });
 
   const fullPassword = password + securityToken;
-  const userInfo = await conn.login(username, fullPassword);
-  console.log('Salesforce login successful for PM Approvals, user ID:', userInfo.id);
   
-  return conn;
+  try {
+    const userInfo = await conn.login(username, fullPassword);
+    console.log('Salesforce login successful for PM Approvals, user ID:', userInfo.id);
+    return conn;
+  } catch (loginError) {
+    console.error('[PM Approvals] Salesforce login error:', loginError.message);
+    console.error('[PM Approvals] Login URL used:', loginUrlForConnection);
+    console.error('[PM Approvals] Original URL:', normalizedUrl);
+    
+    // If test.salesforce.com fails, try login.salesforce.com as fallback
+    if (loginUrlForConnection === 'https://test.salesforce.com' && loginError.message && loginError.message.includes('ENOTFOUND')) {
+      console.log('[PM Approvals] test.salesforce.com failed, trying login.salesforce.com as fallback...');
+      const fallbackConn = new jsforce.Connection({
+        loginUrl: 'https://login.salesforce.com'
+      });
+      try {
+        const userInfo = await fallbackConn.login(username, fullPassword);
+        console.log('Salesforce login successful (fallback) for PM Approvals, user ID:', userInfo.id);
+        return fallbackConn;
+      } catch (fallbackError) {
+        console.error('[PM Approvals] Fallback login also failed:', fallbackError.message);
+        throw new Error(`Salesforce connection failed. Original error: ${loginError.message}. Please check your Salesforce URL configuration in Settings.`);
+      }
+    }
+    
+    throw loginError;
+  }
 };
 
 /**
@@ -1711,6 +1742,254 @@ router.get('/deadlines', authenticate, authorize('view_project', 'all'), asyncHa
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to fetch deadlines'
+    });
+  }
+}));
+
+/**
+ * GET /api/pm-approvals/:transactionId
+ * Fetch a single Payment Transaction record by Transaction ID
+ * NOTE: This route must come AFTER all specific routes (like /summary, /filters, /deadlines, etc.)
+ */
+router.get('/:transactionId', authenticate, authorize('view_project', 'all'), asyncHandler(async (req, res) => {
+  try {
+    const conn = await getSalesforceConnection();
+    const fields = await discoverSelfReportedTimeFields(conn);
+    const { transactionId } = req.params;
+    
+    // If object not found, return error
+    if (!fields.objectName) {
+      return res.status(404).json({
+        success: false,
+        error: 'Payment Transactions object not found in Salesforce'
+      });
+    }
+
+    // Sanitize transaction ID
+    const sanitizedId = validateAndSanitizeSearchTerm(transactionId);
+    if (!sanitizedId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid Transaction ID'
+      });
+    }
+
+    // Build field list for query - get all available fields from Payment_Transactions_Needing_Approval__c
+    const queryFields = new Set([
+      'Id',
+      'Name', // Payment Transactions Needing Approval Name
+      fields.transactionId !== 'Id' ? fields.transactionId : '',
+      fields.contributor || '',
+      fields.projectObjective || '',
+      'Contributor_Project__c', // For Contributor Project relationship
+      'Prod_Week_Status__c',
+      'Transaction_Status__c',
+      'Submitted_for_Approval_Timestamp__c',
+      'Productivity_Variance__c',
+      fields.transactionDate || 'CreatedDate',
+      fields.selfReportedHours || '',
+      fields.selfReportedUnits || '',
+      fields.systemTrackedHours || '',
+      fields.systemTrackedUnits || '',
+      'Adjusted_Hours__c',
+      'Adjusted_Units__c',
+      'Payment_Hours__c',
+      'Payment_Units__c',
+      fields.weekendingDate || '',
+      fields.payrate || '',
+      fields.totalPayment || '',
+      'PM_Approver__c',
+      'PM_Approver__r.Name', // For PM Approver name
+      'Payment_Status__c',
+      'Dispute_Resolution_Text__c',
+      'Dispute_Resolution_Picklist__c',
+      'Dispute_Case__c',
+      'Contributor_Comment__c',
+      'Contributor_Issue__c',
+      'Contributor_Approved_Timestamp__c',
+      fields.status || '',
+      'CreatedDate',
+      'LastModifiedDate',
+      'CreatedBy.Name',
+      'CreatedBy.Id',
+      'LastModifiedBy.Name',
+      'LastModifiedBy.Id',
+      'OwnerId',
+      'Owner.Name',
+      'Owner.Id'
+    ]);
+
+    // Add relationship fields
+    const contributorRel = fields.contributorRelationship || (fields.contributor ? fields.contributor.replace('__c', '__r') : 'Contact__r');
+    const projectObjectiveRel = fields.projectObjectiveRelationship || (fields.projectObjective ? fields.projectObjective.replace('__c', '__r') : 'Project_Objective__r');
+
+    if (fields.contributor) {
+      queryFields.add(fields.contributor);
+      if (fields.contributorContactRelationship) {
+        queryFields.add(`${contributorRel}.${fields.contributorContactRelationship}.Name`);
+        queryFields.add(`${contributorRel}.${fields.contributorContactRelationship}.Email`);
+      } else {
+        queryFields.add(`${contributorRel}.Name`);
+        queryFields.add(`${contributorRel}.Email`);
+      }
+    }
+
+    if (fields.projectObjective) {
+      queryFields.add(fields.projectObjective);
+      if (projectObjectiveRel && projectObjectiveRel.includes('.')) {
+        queryFields.add(`${projectObjectiveRel}.Name`);
+        queryFields.add(`${projectObjectiveRel}.Project__r.Name`);
+        queryFields.add(`${projectObjectiveRel}.Project__r.Account__r.Name`);
+      } else if (projectObjectiveRel) {
+        queryFields.add(`${projectObjectiveRel}.Name`);
+        queryFields.add(`${projectObjectiveRel}.Project__r.Name`);
+        queryFields.add(`${projectObjectiveRel}.Project__r.Account__r.Name`);
+      }
+    }
+
+    // Add Contributor Project relationship fields
+    queryFields.add('Contributor_Project__c');
+    queryFields.add('Contributor_Project__r.Name');
+    queryFields.add('Contributor_Project__r.Id');
+
+    // Remove empty fields
+    const uniqueQueryFields = Array.from(queryFields).filter(f => f !== '');
+    const selectFields = uniqueQueryFields.join(', ');
+
+    // Build WHERE clause - try Transaction_ID__c first, then Id
+    let whereClause = '';
+    if (fields.transactionId !== 'Id') {
+      // Try Transaction_ID__c field first
+      whereClause = `${fields.transactionId} = '${sanitizedId.replace(/'/g, "''")}'`;
+    } else {
+      // Fallback to Id
+      whereClause = `Id = '${sanitizedId.replace(/'/g, "''")}'`;
+    }
+
+    const query = `SELECT ${selectFields} FROM ${fields.objectName} WHERE ${whereClause} LIMIT 1`;
+    
+    const result = await conn.query(query);
+    
+    if (!result.records || result.records.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Payment Transaction not found'
+      });
+    }
+
+    const record = result.records[0];
+    
+    // Format the record with all fields from Payment_Transactions_Needing_Approval__c
+    const formatted = {
+      Id: record.Id,
+      Name: record.Name || '',
+      Transaction_ID__c: record[fields.transactionId] || record.Id,
+      Contributor__c: record[fields.contributor] || null,
+      Contributor__r: record[contributorRel] ? {
+        Name: record[contributorRel].Name || '',
+        Email: record[contributorRel].Email || ''
+      } : null,
+      Contact__r: record['Contact__r'] ? {
+        Name: record['Contact__r'].Name || '',
+        Email: record['Contact__r'].Email || ''
+      } : null,
+      Project_Objective__c: record[fields.projectObjective] || null,
+      Project_Objective__r: record[projectObjectiveRel] ? {
+        Name: record[projectObjectiveRel].Name || '',
+        Project__r: record[projectObjectiveRel].Project__r ? {
+          Name: record[projectObjectiveRel].Project__r.Name || '',
+          Account__r: record[projectObjectiveRel].Project__r.Account__r ? {
+            Name: record[projectObjectiveRel].Project__r.Account__r.Name || ''
+          } : null
+        } : null
+      } : null,
+      Contributor_Project__c: record.Contributor_Project__c || null,
+      Contributor_Project__r: record['Contributor_Project__r'] ? {
+        Id: record['Contributor_Project__r'].Id || record.Contributor_Project__c || null,
+        Name: record['Contributor_Project__r'].Name || '',
+        Project_Objective__r: record['Contributor_Project__r'].Project_Objective__r ? {
+          Name: record['Contributor_Project__r'].Project_Objective__r.Name || '',
+          Project__r: record['Contributor_Project__r'].Project_Objective__r.Project__r ? {
+            Name: record['Contributor_Project__r'].Project_Objective__r.Project__r.Name || '',
+            Account__r: record['Contributor_Project__r'].Project_Objective__r.Project__r.Account__r ? {
+              Name: record['Contributor_Project__r'].Project_Objective__r.Project__r.Account__r.Name || ''
+            } : null
+          } : null
+        } : null
+      } : null,
+      Prod_Week_Status__c: record.Prod_Week_Status__c || null,
+      Transaction_Date__c: record[fields.transactionDate] || record.CreatedDate || null,
+      Transaction_Status__c: record.Transaction_Status__c || record[fields.status] || null,
+      Submitted_for_Approval_Timestamp__c: record.Submitted_for_Approval_Timestamp__c || null,
+      Productivity_Variance__c: record.Productivity_Variance__c || null,
+      Weekending_Date__c: record[fields.weekendingDate] || null,
+      Self_Reported_Hours__c: record[fields.selfReportedHours] || null,
+      SelfReportedHours__c: record[fields.selfReportedHours] || null,
+      Self_Reported_Units__c: record[fields.selfReportedUnits] || null,
+      SelfReportedUnits__c: record[fields.selfReportedUnits] || null,
+      System_Tracked_Hours__c: record[fields.systemTrackedHours] || null,
+      SystemTrackedHours__c: record[fields.systemTrackedHours] || null,
+      System_Tracked_Units__c: record[fields.systemTrackedUnits] || null,
+      SystemTrackedUnits__c: record[fields.systemTrackedUnits] || null,
+      Adjusted_Hours__c: record.Adjusted_Hours__c || null,
+      Adjusted_Units__c: record.Adjusted_Units__c || null,
+      Payment_Hours__c: record.Payment_Hours__c || null,
+      Payment_Units__c: record.Payment_Units__c || null,
+      Payrate__c: record[fields.payrate] || null,
+      Pay_Rate__c: record[fields.payrate] || null,
+      Total_Payment__c: record[fields.totalPayment] || null,
+      Payment_Amount__c: record[fields.totalPayment] || null,
+      PM_Approver__c: record.PM_Approver__c || null,
+      PM_Approver__r: record.PM_Approver__r ? {
+        Name: record.PM_Approver__r.Name || '',
+        Id: record.PM_Approver__r.Id || record.PM_Approver__c || null
+      } : null,
+      Payment_Status__c: record.Payment_Status__c || null,
+      Dispute_Resolution_Text__c: record.Dispute_Resolution_Text__c || null,
+      Dispute_Resolution_Picklist__c: record.Dispute_Resolution_Picklist__c || null,
+      Dispute_Case__c: record.Dispute_Case__c || null,
+      Contributor_Comment__c: record.Contributor_Comment__c || null,
+      Contributor_Issue__c: record.Contributor_Issue__c || null,
+      Contributor_Approved_Timestamp__c: record.Contributor_Approved_Timestamp__c || null,
+      Status__c: record[fields.status] || null,
+      Variance_Percent__c: null, // Calculate if needed
+      CreatedBy: record.CreatedBy ? {
+        Name: record.CreatedBy.Name || '',
+        Id: record.CreatedBy.Id || ''
+      } : null,
+      CreatedDate: record.CreatedDate || null,
+      LastModifiedBy: record.LastModifiedBy ? {
+        Name: record.LastModifiedBy.Name || '',
+        Id: record.LastModifiedBy.Id || ''
+      } : null,
+      LastModifiedDate: record.LastModifiedDate || null,
+      Owner: record.Owner ? {
+        Name: record.Owner.Name || '',
+        Id: record.Owner.Id || record.OwnerId || null
+      } : null,
+      OwnerId: record.OwnerId || null
+    };
+
+    // Calculate variance if we have both hours (use Productivity_Variance__c if available, otherwise calculate)
+    if (formatted.Productivity_Variance__c !== null && formatted.Productivity_Variance__c !== undefined) {
+      formatted.Variance_Percent__c = formatted.Productivity_Variance__c;
+    } else if (formatted.System_Tracked_Hours__c && formatted.System_Tracked_Hours__c > 0) {
+      const selfReported = formatted.Self_Reported_Hours__c || 0;
+      const systemTracked = formatted.System_Tracked_Hours__c;
+      formatted.Variance_Percent__c = ((selfReported - systemTracked) / systemTracked) * 100;
+    } else if (formatted.Self_Reported_Hours__c && formatted.Self_Reported_Hours__c > 0) {
+      formatted.Variance_Percent__c = 100;
+    }
+
+    res.json({
+      success: true,
+      record: formatted
+    });
+  } catch (error) {
+    console.error('Error fetching Payment Transaction:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch Payment Transaction'
     });
   }
 }));
