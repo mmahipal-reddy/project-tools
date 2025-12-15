@@ -180,3 +180,5 @@ const PerformanceMonitor = ({ isOpen, onClose, performanceData }) => {
 
 export default PerformanceMonitor;
 
+
+
